@@ -11,10 +11,7 @@ const path = require('path');
 const { execFile, spawn } = require('child_process');
 const AdmZip = require('adm-zip');
 
-// ====== 配置 ======
-// 将此 URL 替换为你的 GitHub Releases version.json 原始地址
-// 例: https://github.com/你的账号/seedream-desktop/releases/latest/download/version.json
-const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/YOUR_USERNAME/seedream-desktop/main/version.json';
+const VERSION_CHECK_URL = 'https://raw.githubusercontent.com/jiangheyou/seedream-desktop/main/version.json';
 
 // 当前应用版本（从 package.json 读取）
 const CURRENT_VERSION = app.getVersion();
