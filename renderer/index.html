@@ -2385,7 +2385,13 @@ function saveBalance() {
 }
 
 function getSpent() {
-  // 消耗 = 本地计数 × 单价（0.25元/张），不受火山余额延迟影响
+  // 优先使用云端余额计算消耗（更准确）
+  // 如果未同步过，才用本地计数器估算
+  if (balanceData.lastSynced && balanceData.baselineBalance > 0) {
+    const cloudSpent = balanceData.baselineBalance - balanceData.realBalance;
+    return Math.max(cloudSpent, 0);
+  }
+  // 未同步：用本地计数 × 单价估算
   return balanceData.imageCount * 0.25 + balanceData.llmCount * 0.02;
 }
 
@@ -2558,13 +2564,35 @@ async function fetchRealBalance() {
     let couponBalance = parseFloat(raw.coupon) || 0;
 
     if (realBalance >= 0) {
-      // 手动同步：余额 + 起始基线都设为当前值，计数器归零
+      // 同步策略：用云端数据校准本地计数器
+      const oldBalance = balanceData.realBalance || 0;
       balanceData.realBalance = realBalance;
       balanceData.couponBalance = couponBalance;
-      balanceData.baselineBalance = realBalance;
-      balanceData.imageCount = 0;
-      balanceData.llmCount = 0;
       balanceData.lastSynced = true;
+
+      // 用云端余额变化来校准本地计数
+      // 逻辑：如果之前同步过，用余额差值反推消耗，校准计数器
+      if (balanceData.baselineBalance > 0 && oldBalance > 0) {
+        // 云端余额减少了多少
+        const cloudSpent = oldBalance - realBalance;
+        if (cloudSpent > 0) {
+          // 用云端消耗校准本地图片计数（假设主要是图片消耗）
+          const estimatedImages = Math.round(cloudSpent / 0.25);
+          // 如果本地计数与云端估算相差超过 2 张，给出提示但不强制覆盖
+          const diff = Math.abs(estimatedImages - balanceData.imageCount);
+          if (diff > 2) {
+            console.warn('[余额校准] 本地计数=' + balanceData.imageCount +
+              '，云端估算=' + estimatedImages +
+              '，可能在其他地方使用了同一 API Key');
+          }
+          // 用云端数据作为权威值更新计数器
+          balanceData.imageCount = estimatedImages;
+        }
+      }
+
+      // 更新基线为当前云端余额（用于下次校准）
+      balanceData.baselineBalance = realBalance;
+
       // 保存模型用量数据
       balanceData.modelUsage = data.modelUsage || null;
       // 如果 API 返回了资源包数据（通常为空），同步到手动额度（优先保留手动设置）
@@ -3118,7 +3146,12 @@ function openDoubaoNewTab() {
   if (prompt && prompt.value.trim()) {
     navigator.clipboard.writeText(prompt.value.trim()).catch(() => {});
   }
-  window.open('https://www.doubao.com/chat/create-image', '_blank');
+  // Electron: 用默认浏览器打开
+  if (window.electronAPI && window.electronAPI.isElectron) {
+    window.electronAPI.openExternal('https://www.doubao.com/chat/create-image');
+  } else {
+    window.open('https://www.doubao.com/chat/create-image', '_blank');
+  }
 }
 
 function copyDoubaoPrompt() {
@@ -3913,10 +3946,14 @@ function loadDlPath() {
     state.downloadDir = p;
     document.getElementById('dlPath').value = p;
   } else {
-    const defaultPath = 'C:\\Users\\ADMIN\\Downloads';
-    state.downloadDir = defaultPath;
+    // Electron 桌面应用：使用默认下载路径
+    const isElectron = window.electronAPI && window.electronAPI.isElectron;
+    const defaultPath = isElectron
+      ? '点击「选择文件夹」设置保存目录'
+      : 'C:\\Users\\ADMIN\\Downloads';
+    state.downloadDir = isElectron ? null : defaultPath;
     document.getElementById('dlPath').value = defaultPath;
-    saveDlPath(defaultPath);
+    if (!isElectron) saveDlPath(defaultPath);
   }
   // 同步到设置面板
   const sel = document.getElementById('settingsDlPath');
@@ -3940,6 +3977,29 @@ function resetDlPath() {
 }
 
 async function pickDownloadDir() {
+  // Electron 桌面应用：使用原生对话框
+  if (window.electronAPI && window.electronAPI.isElectron) {
+    try {
+      const dirPath = await window.electronAPI.selectDownloadDir();
+      if (!dirPath) return;
+      state.downloadDir = dirPath;
+      state.downloadDirHandle = { path: dirPath, isElectron: true };
+      document.getElementById('dlPath').value = dirPath;
+      const sel = document.getElementById('settingsDlPath');
+      if (sel) sel.value = dirPath;
+      saveDlPath(dirPath);
+      updateDoubaoDlPath();
+      setStatus('done', '下载路径已设置: ' + dirPath);
+      setTimeout(() => setStatus('done', '等待生成'), 2500);
+      return;
+    } catch (e) {
+      document.getElementById('dlPath').value = '';
+      showError('选择目录失败: ' + e.message);
+      return;
+    }
+  }
+
+  // 浏览器环境：使用 File System Access API
   try {
     const handle = await window.showDirectoryPicker();
     state.downloadDir = handle.name;
@@ -3961,6 +4021,24 @@ async function pickDownloadDir() {
 async function downloadImg(url, idx) {
   const filename = `seedream-${state.ratio.replace(':', 'x')}_${String(idx).padStart(2, '0')}_${Date.now()}.jpg`;
 
+  // Electron 桌面应用：使用原生保存对话框
+  if (window.electronAPI && window.electronAPI.isElectron) {
+    try {
+      const saveDir = (state.downloadDirHandle && state.downloadDirHandle.isElectron)
+        ? state.downloadDir : null;
+      const result = await window.electronAPI.saveFile(url, filename, saveDir);
+      if (result.success) {
+        showAiMsg('success', '第 ' + idx + ' 张已保存到 ' + result.path);
+      } else if (!result.canceled) {
+        throw new Error(result.error || '保存失败');
+      }
+      return;
+    } catch (e) {
+      showError('下载失败: ' + e.message);
+      return;
+    }
+  }
+
   // 方案1：File System Access API — 直接保存到用户选择的文件夹
   if (state.downloadDirHandle) {
     try {
@@ -3977,7 +4055,7 @@ async function downloadImg(url, idx) {
     }
   }
 
-  // 方案2：fetch → Blob URL → 触发下载（比 <a download> 更可靠）
+  // 方案2：fetch → Blob URL → 触发下载
   try {
     showAiMsg('info', '正在下载第 ' + idx + ' 张…');
     const resp = await fetch(url);
@@ -3992,7 +4070,6 @@ async function downloadImg(url, idx) {
     document.body.appendChild(a);
     a.click();
 
-    // 延迟清理，确保下载已触发
     setTimeout(() => {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
@@ -4000,7 +4077,6 @@ async function downloadImg(url, idx) {
 
     showAiMsg('success', '第 ' + idx + ' 张下载完成！');
   } catch (e) {
-    // 最终回退：直接打开图片链接
     showError('下载失败: ' + e.message + '，尝试在新窗口打开图片');
     window.open(url, '_blank');
   }
@@ -4331,6 +4407,160 @@ init();
     <button class="save-btn" onclick="window.open('edge://downloads/')" title="打开浏览器下载页">查看</button>
   </div>
 </div>
+
+
+<!-- ===== 更新弹窗 ===== -->
+<div id="update-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:none;align-items:center;justify-content:center;">
+  <div id="update-modal" style="background:#fff;border-radius:14px;width:460px;max-width:92vw;padding:28px 28px 24px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-family:system-ui,sans-serif;">
+
+    <!-- 标题区 -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:#EAF3DE;display:flex;align-items:center;justify-content:center;">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 2v10M6 8l4-6 4 6" stroke="#3B6D11" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="3" y="14" width="14" height="4" rx="2" fill="#3B6D11" opacity=".2"/><rect x="3" y="14" width="14" height="4" rx="2" stroke="#3B6D11" stroke-width="1.5"/></svg>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:500;color:#1a1a1a;" id="upd-title">发现新版本</div>
+        <div style="font-size:12px;color:#888;" id="upd-version-line">v1.0.0 → v1.1.0</div>
+      </div>
+    </div>
+
+    <!-- 强制更新提示 -->
+    <div id="upd-force-badge" style="display:none;margin-bottom:10px;padding:6px 10px;background:#FCEBEB;border-radius:6px;font-size:12px;color:#A32D2D;">
+      此更新包含重要兼容性修复，必须更新后才能继续使用
+    </div>
+
+    <!-- 更新日志 -->
+    <div id="upd-notes" style="margin:12px 0 16px;padding:10px 12px;background:#f7f7f5;border-radius:8px;font-size:13px;color:#444;line-height:1.7;max-height:120px;overflow-y:auto;white-space:pre-wrap;"></div>
+
+    <!-- 进度区（默认隐藏） -->
+    <div id="upd-progress-area" style="display:none;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span id="upd-phase-label" style="font-size:12px;color:#555;">准备下载...</span>
+        <span id="upd-percent-label" style="font-size:12px;color:#555;font-weight:500;">0%</span>
+      </div>
+      <div style="height:8px;background:#ebebeb;border-radius:4px;overflow:hidden;">
+        <div id="upd-progress-bar" style="height:100%;width:0%;background:#3B6D11;border-radius:4px;transition:width 0.2s;"></div>
+      </div>
+      <div id="upd-size-label" style="font-size:11px;color:#aaa;margin-top:4px;text-align:right;"></div>
+    </div>
+
+    <!-- 按钮区 -->
+    <div id="upd-btn-area" style="display:flex;gap:10px;justify-content:flex-end;">
+      <button id="upd-skip-btn" onclick="skipUpdate()" style="padding:8px 18px;border:1px solid #ddd;border-radius:7px;background:#fff;cursor:pointer;font-size:13px;color:#666;">稍后提醒</button>
+      <button id="upd-start-btn" onclick="startUpdate()" style="padding:8px 22px;border:none;border-radius:7px;background:#3B6D11;color:#fff;cursor:pointer;font-size:13px;font-weight:500;">立即更新</button>
+    </div>
+
+    <!-- 完成提示 -->
+    <div id="upd-done-area" style="display:none;text-align:center;padding:8px 0 4px;">
+      <div style="font-size:14px;color:#3B6D11;font-weight:500;margin-bottom:14px;">✓ 更新完成</div>
+      <button onclick="relaunchNow()" style="padding:9px 32px;border:none;border-radius:8px;background:#3B6D11;color:#fff;cursor:pointer;font-size:14px;font-weight:500;">立即重启</button>
+    </div>
+
+    <!-- 错误提示 -->
+    <div id="upd-error-area" style="display:none;padding:10px 12px;background:#FCEBEB;border-radius:8px;font-size:13px;color:#A32D2D;margin-top:4px;"></div>
+  </div>
+</div>
+
+<script>
+// ===== 更新系统 =====
+let _updDownloadUrl = '';
+let _updForce = false;
+
+if (window.electronAPI) {
+  // 监听主进程推送的更新通知
+  window.electronAPI.onUpdateAvailable((info) => {
+    _updDownloadUrl = info.downloadUrl;
+    _updForce = info.force;
+
+    document.getElementById('upd-title').textContent = `发现新版本 v${info.version}`;
+    document.getElementById('upd-version-line').textContent = `当前: v${info.currentVersion}  →  新版: v${info.version}`;
+    document.getElementById('upd-notes').textContent = info.notes || '本次更新修复若干问题，提升稳定性。';
+
+    if (info.force) {
+      document.getElementById('upd-force-badge').style.display = 'block';
+      document.getElementById('upd-skip-btn').style.display = 'none';
+    }
+
+    showUpdateModal();
+  });
+
+  // 监听更新进度
+  window.electronAPI.onUpdateStatus((status) => {
+    const phaseMap = {
+      downloading: '下载中...',
+      applying: '解压合并中...',
+      cleanup: '清理旧文件...',
+      done: '完成',
+      error: '更新失败',
+    };
+
+    const progressArea = document.getElementById('upd-progress-area');
+    const phaseLabel = document.getElementById('upd-phase-label');
+    const percentLabel = document.getElementById('upd-percent-label');
+    const progressBar = document.getElementById('upd-progress-bar');
+    const sizeLabel = document.getElementById('upd-size-label');
+
+    progressArea.style.display = 'block';
+    phaseLabel.textContent = phaseMap[status.phase] || status.phase;
+
+    if (status.phase === 'downloading' && status.percent != null) {
+      progressBar.style.width = status.percent + '%';
+      percentLabel.textContent = status.percent + '%';
+      if (status.total > 0) {
+        const mb = (b) => (b / 1048576).toFixed(1) + ' MB';
+        sizeLabel.textContent = mb(status.received) + ' / ' + mb(status.total);
+      }
+    } else if (status.phase === 'applying') {
+      progressBar.style.width = '85%';
+      percentLabel.textContent = '解压中';
+    } else if (status.phase === 'cleanup') {
+      progressBar.style.width = '95%';
+      percentLabel.textContent = '清理中';
+    } else if (status.phase === 'done') {
+      progressBar.style.width = '100%';
+      percentLabel.textContent = '100%';
+      phaseLabel.textContent = '更新完成';
+      document.getElementById('upd-btn-area').style.display = 'none';
+      document.getElementById('upd-done-area').style.display = 'block';
+    } else if (status.phase === 'error') {
+      document.getElementById('upd-error-area').style.display = 'block';
+      document.getElementById('upd-error-area').textContent = '更新失败: ' + (status.message || '未知错误');
+      document.getElementById('upd-start-btn').disabled = false;
+      document.getElementById('upd-start-btn').textContent = '重试';
+    }
+  });
+
+  // 监听解压进度（精细）
+  window.electronAPI.onUpdateApplyProgress((progress) => {
+    const bar = document.getElementById('upd-progress-bar');
+    const pct = document.getElementById('upd-percent-label');
+    if (bar) bar.style.width = progress.percent + '%';
+    if (pct) pct.textContent = progress.percent + '%';
+  });
+}
+
+function showUpdateModal() {
+  const overlay = document.getElementById('update-overlay');
+  overlay.style.display = 'flex';
+}
+
+function skipUpdate() {
+  if (_updForce) return; // 强制更新不允许跳过
+  document.getElementById('update-overlay').style.display = 'none';
+}
+
+function startUpdate() {
+  if (!_updDownloadUrl) return;
+  document.getElementById('upd-start-btn').disabled = true;
+  document.getElementById('upd-start-btn').textContent = '更新中...';
+  document.getElementById('upd-skip-btn').style.display = 'none';
+  window.electronAPI.performUpdate(_updDownloadUrl);
+}
+
+function relaunchNow() {
+  window.electronAPI.relaunchApp();
+}
+</script>
 
 </body>
 </html>
