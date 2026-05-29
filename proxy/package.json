@@ -1,0 +1,12 @@
+{
+  "name": "volc-balance-proxy",
+  "version": "1.0.0",
+  "description": "火山引擎余额查询代理 - 用 AK/SK 签名查询真实余额",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
