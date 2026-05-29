@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "notes": "## Seedream 4.5 首个正式版 v1.0.0\n\n### 核心功能\n- 基于豆包 Doubao-Seedream-4.5 模型图片生成\n- 支持 8 种比例（1:1 / 4:3 / 3:4 / 16:9 / 9:16 / 3:2 / 2:3 / 21:9）\n- 2K + 4K 双分辨率自由切换\n- 批量生成（1-16张），带超时保护\n- 板块化提示词（风格/背景/标题/副标题）\n- AI 辅助写提示词 + 参考图分析\n- 笔刷替换模式\n\n### 豆包面板\n- 左右分屏嵌入豆包网页\n- 支持 Seedream / 豆包双下载路径\n- 浏览器打开 + 修改保存路径\n\n### 余额系统\n- 本地消耗追踪（图片生成 + LLM调用）\n- 火山引擎 API 余额同步\n- 代金券 / 免费额度手动设置\n- 模型用量账单查询（ListBillOverviewByProd）\n\n### 修复\n- 笔刷模式 .prompt-wrap DOM 缺失 → 视觉效果全面恢复\n- 图片生图最小像素限制 → 所有 2K 比例重新计算\n- 余额=0 显示\"未同步\" → 正确显示 ¥0.00\n- 豆包 iframe 下载被沙箱阻止 → 添加 allow-downloads\n- API Key 验证不当消耗额度 → 改用 1024x1024\n\n### 新增\n- 游戏式热更新系统：检测 → 推送 → 下载 → 合并 → 清理 → 重启",
+  "downloadUrl": "https://github.com/jiangheyou/seedream-desktop/releases/download/v1.0.0/Seedream-4.5-Setup-1.0.0.zip",
+  "force": false,
+  "releaseDate": "2026-05-29"
+}

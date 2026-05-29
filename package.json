@@ -1,0 +1,51 @@
+{
+  "name": "seedream-desktop",
+  "version": "1.0.0",
+  "description": "Seedream 4.5 图片生成桌面应用",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win portable"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.17"
+  },
+  "build": {
+    "appId": "com.seedream.desktop",
+    "productName": "Seedream 4.5",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "proxy.js",
+      "updater.js",
+      "renderer/**/*",
+      "icon.*"
+    ],
+    "win": {
+      "icon": "icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Seedream 4.5"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}
