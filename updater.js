@@ -119,13 +119,27 @@ function httpRequestRaw(options) {
       if (options.expectBinary) {
         const chunks = [];
         res.on('data', (c) => chunks.push(c));
-        res.on('end', () => resolve({ buffer: Buffer.concat(chunks), headers: res.headers, statusCode: res.statusCode }));
+        res.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          const contentLength = res.headers['content-length'];
+          if (contentLength && buffer.length !== parseInt(contentLength, 10)) {
+            return reject(new Error(`响应不完整: 收到 ${buffer.length} 字节, 期望 ${contentLength} 字节`));
+          }
+          resolve({ buffer, headers: res.headers, statusCode: res.statusCode });
+        });
       } else {
-        let data = '';
-        res.setEncoding('utf8');
-        res.on('data', (c) => { data += c; });
-        res.on('end', () => resolve({ text: data, headers: res.headers, statusCode: res.statusCode }));
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          const contentLength = res.headers['content-length'];
+          if (contentLength && buffer.length !== parseInt(contentLength, 10)) {
+            return reject(new Error(`响应不完整: 收到 ${buffer.length} 字节, 期望 ${contentLength} 字节`));
+          }
+          resolve({ text: buffer.toString('utf8'), headers: res.headers, statusCode: res.statusCode });
+        });
       }
+      res.on('error', (err) => reject(new Error('响应流错误: ' + err.message)));
     });
 
     req.on('error', reject);
@@ -155,7 +169,9 @@ async function fetchJsonWithRetry(url, options = {}) {
 // ==================== 版本检测 ====================
 
 function fetchVersionJson() {
-  return fetchJsonWithRetry(VERSION_CHECK_URL);
+  const sep = VERSION_CHECK_URL.includes('?') ? '&' : '?';
+  const url = VERSION_CHECK_URL + sep + '_t=' + Date.now();
+  return fetchJsonWithRetry(url);
 }
 
 function parseVersion(v) {
@@ -195,21 +211,72 @@ function buildDownloadSources(primaryUrl) {
   return sources;
 }
 
+/**
+ * 通过 GitHub API 下载文件
+ * 支持两种模式：
+ * - 小文件（≤1MB）：Contents API 直接返回 base64 content
+ * - 大文件（>1MB）：Contents API 返回 git_url，需通过 Git Blobs API 二次获取
+ */
 function downloadViaGithubApi(apiUrl, destPath, onProgress) {
   return new Promise((resolve, reject) => {
+    // 第一步：调用 Contents API 获取文件元信息（小文件用文本模式，大文件只需 git_url）
     httpRequestRaw({ url: apiUrl, timeout: DOWNLOAD_TIMEOUT_MS, accept: 'application/vnd.github.v3+json' })
       .then((result) => {
         if (result.statusCode !== 200) return reject(new Error(`GitHub API HTTP ${result.statusCode}`));
         let body;
         try { body = JSON.parse(result.text); } catch (e) { return reject(new Error('API 响应不是有效 JSON')); }
-        if (!body.content) return reject(new Error('API 未返回文件内容'));
-        if (body.encoding !== 'base64') return reject(new Error(`API 返回了非 base64 编码 (${body.encoding})`));
-        const fileData = Buffer.from(body.content, 'base64');
-        fs.mkdirSync(path.dirname(destPath), { recursive: true });
-        fs.writeFileSync(destPath, fileData);
-        if (onProgress) onProgress(100, fileData.length, fileData.length);
-        console.log(`[Updater] GitHub API 下载完成: ${(fileData.length/1024).toFixed(1)}KB`);
-        resolve(destPath);
+
+        if (body.content && body.encoding === 'base64') {
+          // 小文件：直接解码 base64 内容
+          const fileData = Buffer.from(body.content, 'base64');
+          fs.mkdirSync(path.dirname(destPath), { recursive: true });
+          fs.writeFileSync(destPath, fileData);
+          if (onProgress) onProgress(100, fileData.length, fileData.length);
+          console.log(`[Updater] GitHub API (小文件) 下载完成: ${(fileData.length/1024).toFixed(1)}KB`);
+          return resolve(destPath);
+        }
+
+        if (!body.git_url) {
+          return reject(new Error('API 未返回文件内容且无 git_url'));
+        }
+
+        // 大文件：通过 Git Blobs API 获取完整内容（无大小限制）
+        console.log(`[Updater] 大文件模式 — 切换到 Git Blobs API: ${body.git_url}`);
+        // 使用 expectBinary: true 避免大文件 UTF-8 字符串拼接问题
+        return httpRequestRaw({
+          url: body.git_url,
+          timeout: DOWNLOAD_TIMEOUT_MS,
+          accept: 'application/vnd.github.v3+json',
+          expectBinary: true,
+        }).then((blobResult) => {
+          if (blobResult.statusCode !== 200) return reject(new Error(`Git Blob API HTTP ${blobResult.statusCode}`));
+          console.log(`[Updater] Blobs API 响应: ${blobResult.buffer.length} bytes`);
+          let blob;
+          try { blob = JSON.parse(blobResult.buffer.toString('utf8')); } catch (e) { return reject(new Error('Blob 响应不是有效 JSON: ' + e.message)); }
+          if (!blob.content) return reject(new Error('Blob API 未返回内容'));
+          console.log(`[Updater] Blob content length: ${blob.content.length} chars, encoding: ${blob.encoding}, declared size: ${blob.size}`);
+
+          const fileData = Buffer.from(blob.content, 'base64');
+          console.log(`[Updater] Base64 decoded: ${fileData.length} bytes`);
+
+          // 校验大小
+          if (blob.size && fileData.length !== blob.size) {
+            return reject(new Error(`Blob 大小不匹配: 解码后 ${fileData.length} 字节, 声明 ${blob.size} 字节`));
+          }
+
+          fs.mkdirSync(path.dirname(destPath), { recursive: true });
+          fs.writeFileSync(destPath, fileData);
+
+          // 校验 zip 头
+          const header = fileData.slice(0, 4).toString('hex');
+          if (header !== '504b0304') {
+            console.warn(`[Updater] 警告: 文件头不是标准 zip (504b0304), 实际: ${header}`);
+          }
+
+          if (onProgress) onProgress(100, fileData.length, fileData.length);
+          console.log(`[Updater] GitHub API (大文件) 下载完成: ${(fileData.length/1024).toFixed(1)}KB`);
+          resolve(destPath);
+        });
       }).catch(reject);
   });
 }

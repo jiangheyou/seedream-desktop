@@ -1,6 +1,6 @@
 {
   "name": "seedream-desktop",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Seedream 4.5 图片生成桌面应用",
   "main": "main.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "build:portable": "electron-builder --win portable"
   },
   "dependencies": {
-    "adm-zip": "^0.5.17"
+    "adm-zip": "^0.5.17",
+    "seedream-desktop": "file:"
   },
   "build": {
     "appId": "com.seedream.desktop",

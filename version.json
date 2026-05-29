@@ -1,1 +1,7 @@
-{"version": "1.0.1", "notes": "## Seedream 4.5 v1.0.1 更新\n\n### BUG 修复\n\n**🔴 P0 - 验证 API Key 返回 400 错误**\n- 根因：validateApiKey() 测试图尺寸为 1024×1024（仅 104万像素），低于 API 最低要求 3686400 像素（1920×1920）\n- 修复：测试图尺寸改回 2048×2048，同步更新所有相关文案（confirm 弹窗、状态提示、设置面板警告）\n- 影响文件：renderer/index.html（4处）+ index.html 网页版（4处）\n\n**🟡 P1 - 同步信息不准确**\n- 问题：手动同步时本地计数器被清零，导致消耗显示永远从零开始\n- 问题：getSpent() 用 baselineBalance - realBalance 计算消耗，但 baseline 只在首次同步时设置\n- 修复：同步时用云端余额变化校准本地计数器，不再强制归零；每次同步都更新基线值\n- 新增：控制台警告日志，当本地计数与云端估算偏差超过 2 张时输出提示\n\n### 改进\n- getSpent() 消耗计算逻辑优化：优先使用云端数据，未同步时才用本地计数估算", "downloadUrl": "https://github.com/jiangheyou/seedream-desktop/releases/download/v1.0.1/Seedream-4.5-Setup-1.0.1.zip", "force": false, "releaseDate": "2026-05-29"}
+{
+  "version": "1.0.2",
+  "notes": "━━━━━━━━━━━━━━━━━━━━━━━━━━\n  Seedream 4.5  v1.0.2  热更新\n  发布日期: 2026-05-30\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🔴 BUG — 热更新下载卡 0% / Invalid package\n\n  问题: 点击更新后进度条卡在 0% 不动\n        更新后启动报「Invalid package」\n\n  原因: updater.js 下载函数用一次性 Buffer 接收\n        无流式进度回调；asar 打包命令执行方式错误\n\n  修复: downloadHttpFile 改为流式下载(onProgress 实时上报)\n        build-hotfix.js findAsar() 优先返回 .js 路径\n        updater.js 新增 _validateAsar() 校验 asar 完整性\n\n🔵 优化 — CDN 缓存自动刷新\n\n  修复: version.json 请求现在带时间戳参数\n        绕过 jsDelivr CDN 缓存，检测更新即时生效\n\n✨ 其他\n\n  · updater.js 下载支持 http/https 双协议\n  · downloadViaGithubApi 补充中间进度回调",
+  "downloadUrl": "https://cdn.jsdelivr.net/gh/jiangheyou/seedream-desktop@main/dist/seedream-desktop-1.0.2.zip",
+  "force": false,
+  "releaseDate": "2026-05-30"
+}
