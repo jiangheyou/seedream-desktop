@@ -216,11 +216,11 @@ function startProxyServer(port = 3001) {
         const usageData = modelUsage.status === 'fulfilled' ? modelUsage.value : null;
         const pkgData = resourcePackages.status === 'fulfilled' ? resourcePackages.value : [];
 
-        const available = parseFloat(balData.AvailableAmount || balData.AvailableBalance || 0);
+        const available = parseFloat(balData.AvailableAmount || balData.AvailableBalance || balData.Balance || 0);
         const cash = parseFloat(balData.CashAmount || balData.CashBalance || 0);
-        const coupon = parseFloat(couponData.TotalRemainingAmount || 0);
+        const coupon = parseFloat(couponData.TotalRemainingAmount || couponData.CouponBalance || 0);
         const arrears = parseFloat(balData.ArrearsAmount || balData.ArrearAmount || 0);
-        const freeze = parseFloat(balData.FrozenAmount || 0);
+        const freeze = parseFloat(balData.FrozenAmount || balData.FreezeAmount || 0);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
