@@ -4012,13 +4012,13 @@ async function validateApiKey() {
   if (!apiKey) { showValidateResult('fail', '请先输入 API Key'); return; }
 
   // 确认验证
-  if (!confirm('验证 API Key 需要发起一次图片生成请求（1024×1024），消耗 ¥0.25 额度。\n\n是否继续？')) {
+  if (!confirm('验证 API Key 需要发起一次图片生成请求（2048×2048），消耗 ¥0.25 额度。\n\n是否继续？')) {
     return;
   }
 
   const sBtn = document.getElementById('settingsImgValidateBtn');
   if (sBtn) { sBtn.disabled = true; sBtn.textContent = '验证中…'; }
-  showValidateResult('info', '正在验证图片生成 API Key（最小尺寸，低消耗）…');
+  showValidateResult('info', '正在验证图片生成 API Key（2048×2048）…');
 
   try {
     const resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', {
@@ -4030,7 +4030,7 @@ async function validateApiKey() {
       body: JSON.stringify({
         model: 'doubao-seedream-4-5-251128',
         prompt: 'test',
-        size: '1024x1024',
+        size: '2048x2048',
         response_format: 'url',
       }),
     });
@@ -4198,7 +4198,7 @@ init();
           <div class="validate-result" id="settingsValidateResult"></div>
           <div style="margin-top:4px;font-size:11px;color:var(--text-hint);">
             模型：<code style="background:var(--surface2);padding:1px 6px;border-radius:4px;">doubao-seedream-4-5-251128</code>
-            · <span style="color:#e8a317;">验证消耗 ¥0.25（1024×1024 测试图）</span>
+            · <span style="color:#e8a317;">验证消耗 ¥0.25（2048×2048 测试图）</span>
           </div>
         </div>
         <div>
