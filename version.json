@@ -1,7 +1,7 @@
 {
-  "version": "1.0.2",
-  "notes": "━━━━━━━━━━━━━━━━━━━━━━━━━━\n  Seedream 4.5  v1.0.2  热更新\n  发布日期: 2026-05-30\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🔴 BUG — 热更新下载卡 0% / Invalid package\n\n  问题: 点击更新后进度条卡在 0% 不动\n        更新后启动报「Invalid package」\n\n  原因: updater.js 下载函数用一次性 Buffer 接收\n        无流式进度回调；asar 打包命令执行方式错误\n\n  修复: downloadHttpFile 改为流式下载(onProgress 实时上报)\n        build-hotfix.js findAsar() 优先返回 .js 路径\n        updater.js 新增 _validateAsar() 校验 asar 完整性\n\n🔵 优化 — CDN 缓存自动刷新\n\n  修复: version.json 请求现在带时间戳参数\n        绕过 jsDelivr CDN 缓存，检测更新即时生效\n\n✨ 其他\n\n  · updater.js 下载支持 http/https 双协议\n  · downloadViaGithubApi 补充中间进度回调",
-  "downloadUrl": "https://cdn.jsdelivr.net/gh/jiangheyou/seedream-desktop@main/dist/seedream-desktop-1.0.2.zip",
+  "version": "1.0.3",
+  "notes": "━━━━━━━━━━━━━━━━━━━━━━━━━━\n  Seedream 4.5  v1.0.3  热更新\n  发布日期: 2026-05-30\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n🔴 BUG — 热更新「Invalid package」错误\n\n  问题: 更新下载完成后报「Invalid package」\n        导致更新无法完成\n\n  原因: build-hotfix.js 打包了整个项目目录\n        （含 .git/node_modules 等无关文件）\n        生成的 asar 达 12MB，格式异常\n\n  修复: 只打包核心运行文件（精选临时目录）\n        asar 从 12MB 缩减到 746KB\n        updater.js 使用 original-fs 绕过 Electron 拦截\n\n🔵 优化 — CDN 缓存自动刷新\n\n  version.json 请求带时间戳参数\n  绕过 jsDelivr CDN 缓存，检测更新即时生效",
+  "downloadUrl": "https://cdn.jsdelivr.net/gh/jiangheyou/seedream-desktop@main/dist/seedream-desktop-1.0.3.zip",
   "force": false,
   "releaseDate": "2026-05-30"
 }

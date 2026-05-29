@@ -14,7 +14,9 @@
 const { app } = require('electron');
 const https = require('https');
 const http = require('http');
-const fs = require('fs');
+// 使用 original-fs 绕过 Electron 对 .asar 路径的 fs 拦截
+// Electron 会拦截所有 .asar 文件的 fs 操作，导致读取损坏的 asar 时报 "Invalid package"
+const fs = require('original-fs') || require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
 const AdmZip = require('adm-zip');
