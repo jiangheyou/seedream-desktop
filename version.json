@@ -1,9 +1,9 @@
 {
   "version": "1.0.5",
-  "notes": "Seedream 4.5 v1.0.5（2026-05-30）",
-  "downloadUrl": "https://gitee.com/jiang-heyou/seedream-4.5/releases/download/v1.0.5/Seedream%204.5%20Setup%201.0.3.exe",
+  "notes": "Seedream 4.5 v1.0.5（2026-05-30）— 体积修复版：1.4GB→79MB",
+  "downloadUrl": "https://github.com/jiangheyou/seedream-desktop/releases/download/1.05/Seedream.4.5.Setup.1.0.5.exe",
   "fallbackUrls": [
-    "https://cdn.jsdelivr.net/gh/jiangheyou/seedream-desktop@main/dist/Seedream%204.5%20Setup%201.0.3.exe"
+    "https://github.com/jiangheyou/seedream-desktop/releases/download/1.05/Seedream.4.5.Setup.1.0.5.exe"
   ],
   "force": false,
   "releaseDate": "2026-05-30",
