@@ -1,6 +1,6 @@
 {
   "name": "seedream-desktop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Seedream 4.5 图片生成桌面应用",
   "main": "main.js",
   "scripts": {
