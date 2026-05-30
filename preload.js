@@ -32,6 +32,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update-apply-progress', (event, progress) => callback(progress));
   },
 
+  // 监听版本检测失败（主进程推送错误信息）
+  onUpdateCheckError: (callback) => {
+    ipcRenderer.on('update-check-error', (event, info) => callback(info));
+  },
+
   // 是否在 Electron 环境中
   isElectron: true,
 });

@@ -4621,6 +4621,13 @@ if (window.electronAPI) {
     if (bar) bar.style.width = progress.percent + '%';
     if (pct) pct.textContent = progress.percent + '%';
   });
+
+  // 监听版本检测失败 — 给用户可见反馈
+  window.electronAPI.onUpdateCheckError((info) => {
+    console.warn('[更新] 版本检测失败:', info.message);
+    // 不弹窗打扰用户，但在控制台记录，方便排查
+    // 如果需要可以在这里加一个轻量 toast 提示
+  });
 }
 
 function showUpdateModal() {
