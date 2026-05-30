@@ -6,13 +6,16 @@ const https = require('https');
 const http = require('http');
 
 // ===== 配置 =====
-const CONFIG = {
+const DEFAULT_CONFIG = {
   ak: process.env.VOLC_ACCESS_KEY || '',
   sk: process.env.VOLC_SECRET_KEY || '',
   host: 'billing.volcengineapi.com',
   region: 'cn-beijing',
   service: 'billing',
 };
+
+// 运行时可动态更新（从请求中传入的凭据）
+let activeConfig = { ...DEFAULT_CONFIG };
 
 // ===== V4-HMAC-SHA256 签名 =====
 function sha256(data) {
@@ -30,22 +33,29 @@ function sign(method, uri, query, headers, body) {
 
   const sortedQuery = Object.keys(query).sort().map(k => encodeURIComponent(k) + '=' + encodeURIComponent(query[k])).join('&');
   const queryString = sortedQuery ? '?' + sortedQuery : '';
-  const canonicalHeaders = 'content-type:' + headers['Content-Type'] + '\nhost:' + CONFIG.host + '\nx-date:' + timestamp + '\n';
+  const canonicalHeaders = 'content-type:' + headers['Content-Type'] + '\nhost:' + activeConfig.host + '\nx-date:' + timestamp + '\n';
   const signedHeaders = 'content-type;host;x-date';
   const bodyHash = sha256(body);
 
   const canonicalRequest = method + '\n' + uri + '\n' + queryString + '\n' + canonicalHeaders + '\n' + signedHeaders + '\n' + bodyHash;
 
-  const scope = dateStr + '/' + CONFIG.region + '/' + CONFIG.service + '/request';
+  const scope = dateStr + '/' + activeConfig.region + '/' + activeConfig.service + '/request';
   const stringToSign = 'HMAC-SHA256\n' + timestamp + '\n' + scope + '\n' + sha256(canonicalRequest);
 
-  const kDate = hmacSha256(CONFIG.sk, dateStr);
-  const kRegion = hmacSha256(kDate, CONFIG.region);
-  const kService = hmacSha256(kRegion, CONFIG.service);
+  const kDate = hmacSha256(activeConfig.sk, dateStr);
+  const kRegion = hmacSha256(kDate, activeConfig.region);
+  const kService = hmacSha256(kRegion, activeConfig.service);
   const kSigning = hmacSha256(kService, 'request');
   const signature = hmacSha256(kSigning, stringToSign).toString('hex');
 
-  return 'HMAC-SHA256 Credential=' + CONFIG.ak + '/' + scope + ', SignedHeaders=' + signedHeaders + ', Signature=' + signature;
+  return 'HMAC-SHA256 Credential=' + activeConfig.ak + '/' + scope + ', SignedHeaders=' + signedHeaders + ', Signature=' + signature;
+}
+
+function setCredentials(ak, sk) {
+  if (ak && sk) {
+    activeConfig.ak = ak;
+    activeConfig.sk = sk;
+  }
 }
 
 function apiRequest(method, uri, query, reqBody) {
@@ -62,7 +72,7 @@ function apiRequest(method, uri, query, reqBody) {
     const path = uri + (sortedQuery ? '?' + sortedQuery : '');
 
     const req = https.request({
-      hostname: CONFIG.host,
+      hostname: activeConfig.host,
       port: 443,
       path: path,
       method: method,
@@ -185,6 +195,28 @@ async function listResourcePackages() {
   return [];
 }
 
+// ===== 从请求 body 读取凭据并设置 =====
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
+    req.on('error', reject);
+  });
+}
+
+async function applyCredentials(req) {
+  try {
+    const body = await readBody(req);
+    if (body) {
+      const data = JSON.parse(body);
+      if (data.ak && data.sk) setCredentials(data.ak, data.sk);
+      return data;
+    }
+  } catch (_) {}
+  return {};
+}
+
 // ===== HTTP 服务器 =====
 function startProxyServer(port = 3001) {
   const server = http.createServer(async (req, res) => {
@@ -204,6 +236,7 @@ function startProxyServer(port = 3001) {
 
     try {
       if (path === '/api/all') {
+        await applyCredentials(req);
         const [balance, coupons, modelUsage, resourcePackages] = await Promise.allSettled([
           queryBalance(),
           listCoupons(),
@@ -233,6 +266,7 @@ function startProxyServer(port = 3001) {
       }
 
       if (path === '/api/balance') {
+        await applyCredentials(req);
         const data = await queryBalance();
         const available = parseFloat(data.AvailableAmount || data.AvailableBalance || 0);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -241,6 +275,7 @@ function startProxyServer(port = 3001) {
       }
 
       if (path === '/api/coupons') {
+        await applyCredentials(req);
         const data = await listCoupons();
         const remaining = parseFloat(data.TotalRemainingAmount || 0);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -249,6 +284,7 @@ function startProxyServer(port = 3001) {
       }
 
       if (path === '/api/model-usage') {
+        await applyCredentials(req);
         const data = await listModelUsage();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, data }));
@@ -256,6 +292,7 @@ function startProxyServer(port = 3001) {
       }
 
       if (path === '/api/resource-packages') {
+        await applyCredentials(req);
         const data = await listResourcePackages();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, data }));
@@ -280,4 +317,4 @@ function startProxyServer(port = 3001) {
   });
 }
 
-module.exports = { startProxyServer };
+module.exports = { startProxyServer, setCredentials };

@@ -2549,7 +2549,18 @@ async function fetchRealBalance() {
   clearTimeout(_balanceFetchTimer);
 
   try {
-    const resp = await fetch(BALANCE_PROXY);
+    // 读取火山引擎 AK/SK（从 localStorage）
+    const { ak, sk } = getVolcCredentials();
+    if (!ak || !sk) {
+      _showSyncStatus(btn, '⚠️ 请先设置火山引擎 AK/SK（设置面板 → 余额管理）', true);
+      return;
+    }
+
+    const resp = await fetch(BALANCE_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ak, sk }),
+    });
     const data = await resp.json();
 
     if (!resp.ok || data.error) {
@@ -2639,7 +2650,14 @@ function _showSyncStatus(btn, msg, isError) {
 // 静默同步余额（每次生图后自动调用，更新真实余额+代金券+模型用量）
 async function _silentBalanceSync() {
   try {
-    const resp = await fetch(BALANCE_PROXY);
+    const { ak, sk } = getVolcCredentials();
+    if (!ak || !sk) return; // 未配置 AK/SK 时静默跳过
+
+    const resp = await fetch(BALANCE_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ak, sk }),
+    });
     const data = await resp.json();
     if (!resp.ok || data.error) return;
     const s = data.summary || {};
@@ -3031,6 +3049,13 @@ function syncSettingsFromOriginals() {
   if (lvr && slvr) slvr.innerHTML = lvr.innerHTML;
   // 同步合并预览开关状态
   updateMergePreviewSwitch();
+  // 同步火山引擎 AK/SK
+  const volcAK = document.getElementById('settingsVolcAK');
+  const volcSK = document.getElementById('settingsVolcSK');
+  const volcResult = document.getElementById('settingsVolcCredsResult');
+  if (volcAK) volcAK.value = localStorage.getItem('seedream_volc_ak') || '';
+  if (volcSK) volcSK.value = localStorage.getItem('seedream_volc_sk') || '';
+  if (volcResult) { volcResult.textContent = ''; volcResult.className = 'validate-result'; }
 }
 
 function syncApiKey(type) {
@@ -4196,6 +4221,35 @@ function showLlmValidateResult(type, msg) {
 function saveImgKey(k) { if (k) localStorage.setItem('seedream_api_key', k); }
 function saveLlmKey(k) { if (k) localStorage.setItem('seedream_llm_key', k); }
 
+// ===== 火山引擎 AK/SK 管理 =====
+function saveVolcCredentials() {
+  const ak = document.getElementById('settingsVolcAK').value.trim();
+  const sk = document.getElementById('settingsVolcSK').value.trim();
+  const resultEl = document.getElementById('settingsVolcCredsResult');
+  if (!ak || !sk) {
+    if (resultEl) { resultEl.textContent = '⚠️ AK 和 SK 都不能为空'; resultEl.className = 'validate-result fail'; }
+    return;
+  }
+  localStorage.setItem('seedream_volc_ak', ak);
+  localStorage.setItem('seedream_volc_sk', sk);
+  if (resultEl) { resultEl.textContent = '✅ AK/SK 已保存'; resultEl.className = 'validate-result success'; }
+}
+
+function clearVolcCredentials() {
+  localStorage.removeItem('seedream_volc_ak');
+  localStorage.removeItem('seedream_volc_sk');
+  document.getElementById('settingsVolcAK').value = '';
+  document.getElementById('settingsVolcSK').value = '';
+  const resultEl = document.getElementById('settingsVolcCredsResult');
+  if (resultEl) { resultEl.textContent = '🗑️ 已清除'; resultEl.className = 'validate-result'; }
+}
+
+function getVolcCredentials() {
+  const ak = localStorage.getItem('seedream_volc_ak') || '';
+  const sk = localStorage.getItem('seedream_volc_sk') || '';
+  return { ak, sk };
+}
+
 // ===== Link 可用性检测 =====
 async function checkLinkAvailability(url, imgIdx) {
   const card = document.getElementById('imgCard' + imgIdx);
@@ -4311,6 +4365,30 @@ init();
             style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;"
             onchange="setInitialBalance(this.value)" />
         </div>
+
+        <!-- 火山引擎 AK/SK（余额同步用） -->
+        <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:500;">火山引擎控制台 AK/SK（自动余额同步用）</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div class="api-key-row">
+              <input type="password" id="settingsVolcAK" placeholder="AccessKey" autocomplete="off" style="flex:1;" />
+              <button class="toggle-key" onclick="toggleKey('settingsVolcAK', this)">显示</button>
+            </div>
+            <div class="api-key-row">
+              <input type="password" id="settingsVolcSK" placeholder="SecretKey" autocomplete="off" style="flex:1;" />
+              <button class="toggle-key" onclick="toggleKey('settingsVolcSK', this)">显示</button>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn-validate" onclick="saveVolcCredentials()">保存</button>
+              <button class="btn-validate" style="background:var(--surface2);color:var(--text-muted);" onclick="clearVolcCredentials()">清除</button>
+            </div>
+          </div>
+          <div style="margin-top:6px;font-size:11px;color:var(--text-hint);">
+            请从 <a href="https://console.volcengine.com/iam/keymanage/" target="_blank" style="color:var(--accent);">火山控制台 → 密钥管理</a> 获取 AccessKey 和 SecretKey，用于自动同步余额。
+          </div>
+          <div class="validate-result" id="settingsVolcCredsResult"></div>
+        </div>
+
         <div style="font-size:11px;color:var(--text-hint);">
           模型：doubao-seedream-4-5-251128 · 0.25 元/张
         </div>
