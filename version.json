@@ -1,8 +1,9 @@
 {
   "version": "1.0.5",
   "notes": "Seedream 4.5 v1.0.5（2026-05-30）— 体积修复版：1.4GB→79MB",
-  "downloadUrl": "https://cdn.jsdelivr.net/gh/jiangheyou/seedream-desktop@main/release/Seedream-4.5-Setup-1.0.5.zip",
+  "downloadUrl": "https://exe1.webgetstore.com/2026/05/30/edb6b325450ca083505e7185db332263.exe?sg=9fa8093d7545b5ac39a6c9fe991bc1ad&e=6a1a94a9&fileName=Seedream%204.5%20Setup%201.0.5.exe&fi=288435172",
   "fallbackUrls": [
+    "https://cdn.jsdelivr.net/gh/jiangheyou/seedream-desktop@main/release/Seedream-4.5-Setup-1.0.5.zip",
     "https://github.com/jiangheyou/seedream-desktop/releases/download/1.05/Seedream.4.5.Setup.1.0.5.exe"
   ],
   "force": false,
