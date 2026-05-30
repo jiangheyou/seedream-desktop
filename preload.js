@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ===== 更新相关 API =====
   // 触发执行更新（传入下载 URL）
-  performUpdate: (downloadUrl) => ipcRenderer.invoke('perform-update', downloadUrl),
+  performUpdate: (downloadUrl, versionInfo) => ipcRenderer.invoke('perform-update', downloadUrl, versionInfo),
 
   // 重启应用
   relaunchApp: () => ipcRenderer.invoke('relaunch-app'),

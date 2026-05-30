@@ -127,8 +127,8 @@ ipcMain.handle('open-external', async (event, url) => {
 });
 
 // ===== IPC 处理：更新 =====
-ipcMain.handle('perform-update', async (event, downloadUrl) => {
-  await performUpdate(mainWindow, downloadUrl);
+ipcMain.handle('perform-update', async (event, downloadUrl, versionInfo) => {
+  await performUpdate(mainWindow, downloadUrl, versionInfo);
 });
 
 ipcMain.handle('relaunch-app', async () => {

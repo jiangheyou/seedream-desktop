@@ -4465,12 +4465,14 @@ init();
 // ===== 更新系统 =====
 let _updDownloadUrl = '';
 let _updForce = false;
+let _updVersionInfo = null;
 
 if (window.electronAPI) {
   // 监听主进程推送的更新通知
   window.electronAPI.onUpdateAvailable((info) => {
     _updDownloadUrl = info.downloadUrl;
     _updForce = info.force;
+    _updVersionInfo = info.versionInfo || info;  // 保存完整 versionInfo（含 fallbackUrls）
 
     document.getElementById('upd-title').textContent = `发现新版本 v${info.version}`;
     document.getElementById('upd-version-line').textContent = `当前: v${info.currentVersion}  →  新版: v${info.version}`;
@@ -4488,8 +4490,9 @@ if (window.electronAPI) {
   window.electronAPI.onUpdateStatus((status) => {
     const phaseMap = {
       downloading: '下载中...',
-      applying: '解压合并中...',
-      cleanup: '清理旧文件...',
+      installing: '静默安装中，请稍候...',
+      applying: '解压合并中...',  // 兼容旧版
+      cleanup: '清理旧文件...',   // 兼容旧版
       done: '完成',
       error: '更新失败',
     };
@@ -4510,6 +4513,9 @@ if (window.electronAPI) {
         const mb = (b) => (b / 1048576).toFixed(1) + ' MB';
         sizeLabel.textContent = mb(status.received) + ' / ' + mb(status.total);
       }
+    } else if (status.phase === 'installing') {
+      progressBar.style.width = '95%';
+      percentLabel.textContent = '安装中';
     } else if (status.phase === 'applying') {
       progressBar.style.width = '85%';
       percentLabel.textContent = '解压中';
@@ -4554,7 +4560,7 @@ function startUpdate() {
   document.getElementById('upd-start-btn').disabled = true;
   document.getElementById('upd-start-btn').textContent = '更新中...';
   document.getElementById('upd-skip-btn').style.display = 'none';
-  window.electronAPI.performUpdate(_updDownloadUrl);
+  window.electronAPI.performUpdate(_updDownloadUrl, _updVersionInfo);
 }
 
 function relaunchNow() {
