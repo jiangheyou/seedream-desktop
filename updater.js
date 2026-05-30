@@ -21,16 +21,21 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 
 // ==================== 配置 ====================
 
-/** 代理地址（Clash 等）— 设为空字符串则不使用代理 */
-const PROXY_URL = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || 'http://127.0.0.1:7899';
+/**
+ * 代理地址（可选）— 国内网络通常不需要
+ * 设为空字符串 '' 则不使用代理（默认行为）
+ * 如需代理可设为 'http://127.0.0.1:7899' 或通过环境变量 HTTPS_PROXY 设置
+ */
+const PROXY_URL = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
 
 /**
  * 版本检测 URL 列表（按优先级排列）
- * Gitee raw 地址在国内无需翻墙，速度快
+ * jsDelivr CDN 在国内速度快且稳定，作为主源
+ * Gitee 作为备源（有时会返回 403）
  */
 const VERSION_CHECK_URLS = [
-  'https://gitee.com/jiang-heyou/seedream-4.5/raw/main/version.json',
   'https://cdn.jsdelivr.net/gh/jiangheyou/seedream-desktop@main/version.json',
+  'https://gitee.com/jiang-heyou/seedream-4.5/raw/main/version.json',
 ];
 
 /** 已知被拦截/不稳定的域名 */
