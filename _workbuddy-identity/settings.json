@@ -1,0 +1,27 @@
+{
+  "enabledPlugins": {
+    "agent-browser@codebuddy-plugins-official": true,
+    "playwright-cli@codebuddy-plugins-official": true,
+    "skills-sec-audit@codebuddy-plugins-official": true,
+    "find-skills@codebuddy-plugins-official": true,
+    "document-skills@cb_teams_marketplace": true,
+    "finance-data@cb_teams_marketplace": true,
+    "pptx@codebuddy-plugins-official": true,
+    "pdf@codebuddy-plugins-official": true,
+    "docx@codebuddy-plugins-official": true,
+    "xlsx@codebuddy-plugins-official": true
+  },
+  "claw": {
+    "channels": {
+      "wechatmp": {
+        "enabled": true,
+        "connectionMode": "webhook",
+        "registration": {
+          "webhookUrl": "",
+          "sessionId": "7b637315-9380-4b3c-b35b-7469dccd1088_ef3e19272e4d4ec6c2a9db62cc3247e4d85d7742fc8b4c76a780f3297f0f47f1_db1c133b1b95739893b75b91098ada3ea404f5ffeded42138c3e3142e54f0a12"
+        },
+        "artifactUploadEnabled": true
+      }
+    }
+  }
+}

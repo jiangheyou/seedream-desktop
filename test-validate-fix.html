@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试 validateApiKey 修复</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f7;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        h1 {
+            color: #1a1a1a;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f8fa;
+            border-radius: 8px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #5b5bd6;
+        }
+        button {
+            background: #5b5bd6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #4a4ab8;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .code-block {
+            background: #1a1a2e;
+            color: #eee;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 测试 validateApiKey 修复</h1>
+        
+        <div class="test-section">
+            <h3>测试用例 1: 检查代码修复</h3>
+            <p>验证 renderer/index.html 中的 size 参数是否已正确修改为 '2048x2048'</p>
+            <button onclick="testCodeFix()">检查代码</button>
+            <div id="codeTestResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>测试用例 2: API 尺寸验证</h3>
+            <p>使用 2048x2048 尺寸调用 API，验证是否通过最小像素要求</p>
+            <div style="margin: 10px 0;">
+                <label>API Key: </label>
+                <input type="password" id="testApiKey" placeholder="输入你的 API Key" style="width: 300px; padding: 8px;" />
+            </div>
+            <button onclick="testApiCall()">测试 API 调用</button>
+            <div id="apiTestResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>测试用例 3: 1024x1024 对比测试</h3>
+            <p>验证 1024x1024 是否真的会失败（应该失败）</p>
+            <button onclick="testBadSize()">测试 1024x1024（应该失败）</button>
+            <div id="badSizeTestResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>修复总结</h3>
+            <div class="code-block">// 修复前（错误）:
+size: '1024x1024'  // 1,048,576 pixels ❌ 小于 3,686,400
+
+// 修复后（正确）:
+size: '2048x2048'  // 4,194,304 pixels ✅ 大于 3,686,400
+
+// API 要求: 最小 3,686,400 pixels (1920×1920)
+// 错误信息: "image size must be at least 3686400 pixels"</div>
+        </div>
+    </div>
+
+    <script>
+        // 测试用例 1: 检查代码修复
+        function testCodeFix() {
+            const resultDiv = document.getElementById('codeTestResult');
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = '正在检查代码...';
+            
+            // 读取文件并检查
+            fetch('renderer/index.html')
+                .then(resp => resp.text())
+                .then(content => {
+                    const has1024 = content.includes("size: '1024x1024'") || content.includes('size: "1024x1024"');
+                    const has2048 = content.includes("size: '2048x2048'") || content.includes('size: "2048x2048"');
+                    
+                    let html = '';
+                    let allPassed = true;
+                    
+                    html += '<span class="status-badge ' + (has1024 ? 'status-fail' : 'status-pass') + '">';
+                    html += (has1024 ? '❌ 失败' : '✅ 通过') + '</span> ';
+                    html += '1024x1024 检测: ' + (has1024 ? '仍然包含（需要修复）' : '已移除 ✓') + '\n\n';
+                    
+                    html += '<span class="status-badge ' + (has2048 ? 'status-pass' : 'status-fail') + '">';
+                    html += (has2048 ? '✅ 通过' : '❌ 失败') + '</span> ';
+                    html += '2048x2048 检测: ' + (has2048 ? '已正确设置 ✓' : '未找到（需要修复）') + '\n\n';
+                    
+                    // 检查文案
+                    const has1024Text = content.includes('1024×1024');
+                    const has2048Text = content.includes('2048×2048');
+                    
+                    html += '<span class="status-badge ' + (!has1024Text ? 'status-pass' : 'status-fail') + '">';
+                    html += (!has1024Text ? '✅ 通过' : '❌ 失败') + '</span> ';
+                    html += '文案 1024×1024 检测: ' + (!has1024Text ? '已移除 ✓' : '仍然包含（需要修复）') + '\n\n';
+                    
+                    html += '<span class="status-badge ' + (has2048Text ? 'status-pass' : 'status-fail') + '">';
+                    html += (has2048Text ? '✅ 通过' : '❌ 失败') + '</span> ';
+                    html += '文案 2048×2048 检测: ' + (has2048Text ? '已正确设置 ✓' : '未找到（需要修复）');
+                    
+                    resultDiv.className = 'result ' + (allPassed ? 'success' : 'error');
+                    resultDiv.innerHTML = html;
+                })
+                .catch(err => {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '错误: ' + err.message + '\n\n请确保在正确的目录中运行此测试，或者手动检查 renderer/index.html';
+                });
+        }
+
+        // 测试用例 2: 测试 API 调用
+        async function testApiCall() {
+            const apiKey = document.getElementById('testApiKey').value.trim();
+            const resultDiv = document.getElementById('apiTestResult');
+            
+            if (!apiKey) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '请先输入 API Key';
+                return;
+            }
+            
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = '正在测试 API 调用（使用 2048x2048）...';
+            
+            try {
+                const resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey,
+                    },
+                    body: JSON.stringify({
+                        model: 'doubao-seedream-4-5-251128',
+                        prompt: 'test',
+                        size: '2048x2048',
+                        response_format: 'url',
+                    }),
+                });
+                
+                const data = await resp.json().catch(() => ({}));
+                
+                if (resp.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = '✅ API 调用成功！\n\n状态: ' + resp.status + '\n\n响应: ' + JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '❌ API 调用失败\n\n状态: ' + resp.status + '\n\n错误: ' + JSON.stringify(data, null, 2);
+                }
+            } catch (e) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ 网络错误: ' + e.message;
+            }
+        }
+
+        // 测试用例 3: 测试错误的尺寸
+        async function testBadSize() {
+            const apiKey = document.getElementById('testApiKey').value.trim();
+            const resultDiv = document.getElementById('badSizeTestResult');
+            
+            if (!apiKey) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '请先输入 API Key';
+                return;
+            }
+            
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = '正在测试 1024x1024（预期会失败）...';
+            
+            try {
+                const resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey,
+                    },
+                    body: JSON.stringify({
+                        model: 'doubao-seedream-4-5-251128',
+                        prompt: 'test',
+                        size: '1024x1024',
+                        response_format: 'url',
+                    }),
+                });
+                
+                const data = await resp.json().catch(() => ({}));
+                
+                if (resp.ok) {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = '⚠️ 意外成功！API 接受了 1024x1024（这可能意味着 API 要求已更改）\n\n状态: ' + resp.status + '\n\n响应: ' + JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = '✅ 如预期失败！\n\n这验证了 1024x1024 确实会导致错误\n\n状态: ' + resp.status + '\n\n错误: ' + JSON.stringify(data, null, 2);
+                }
+            } catch (e) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ 网络错误: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>

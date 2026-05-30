@@ -9,8 +9,7 @@
     "build:portable": "electron-builder --win portable"
   },
   "dependencies": {
-    "adm-zip": "^0.5.17",
-    "seedream-desktop": "file:"
+    "adm-zip": "^0.5.17"
   },
   "build": {
     "appId": "com.seedream.desktop",
@@ -24,7 +23,11 @@
       "proxy.js",
       "updater.js",
       "renderer/**/*",
-      "icon.*"
+      "icon.*",
+      "!**/node_modules/**/{.bin,.cache,CHANGELOG,CONTRIBUTING,History,LICENSE,README,*.d.ts,*.map}",
+      "!dist",
+      "!.workbuddy",
+      "!build-*"
     ],
     "win": {
       "icon": "icon.ico",

@@ -17,16 +17,8 @@ const http = require('http');
 const fs = require('original-fs') || require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 
 // ==================== 配置 ====================
-
-/**
- * 代理地址（可选）— 国内网络通常不需要
- * 设为空字符串 '' 则不使用代理（默认行为）
- * 如需代理可设为 'http://127.0.0.1:7899' 或通过环境变量 HTTPS_PROXY 设置
- */
-const PROXY_URL = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || '';
 
 /**
  * 版本检测 URL 列表（按优先级排列）
@@ -118,11 +110,6 @@ function httpRequestRaw(options) {
       }, options.extraHeaders || {}),
       timeout: options.timeout || CHECK_TIMEOUT_MS,
     };
-
-    // 代理支持：通过 Clash 等本地代理访问外网
-    if (PROXY_URL) {
-      try { reqOpts.agent = new HttpsProxyAgent(PROXY_URL); } catch (_) {}
-    }
 
     const req = mod.request(reqOpts, (res) => {
       // 重定向处理
@@ -262,11 +249,6 @@ function streamDownload(url, destPath, onProgress) {
       headers: { 'User-Agent': 'Seedream-Updater/4.0' },
       timeout: DOWNLOAD_TIMEOUT_MS,
     };
-
-    // 代理支持
-    if (PROXY_URL) {
-      try { reqOpts.agent = new HttpsProxyAgent(PROXY_URL); } catch (_) {}
-    }
 
     function doRequest(currentUrl, redirectCount) {
       const obj = new URL(currentUrl);

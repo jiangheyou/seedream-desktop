@@ -1,0 +1,2334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seedream 4.5 图片生成</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface2: #f8f8fa;
+    --border: rgba(0,0,0,0.08);
+    --border-hover: rgba(0,0,0,0.15);
+    --text: #1a1a1a;
+    --text-muted: #666;
+    --text-hint: #999;
+    --accent: #5b5bd6;
+    --accent-light: #eeeeff;
+    --accent-hover: #4a4ab8;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ====== Header ====== */
+  .header {
+    text-align: center;
+    padding: 48px 24px 32px;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .header p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  /* ====== Main Layout ====== */
+  .main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+  }
+
+  /* ====== Card ====== */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-title svg { opacity: 0.5; }
+
+  /* ====== API Key ====== */
+  .api-key-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .api-key-row input {
+    flex: 1;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    font-family: "SF Mono", "Fira Code", monospace;
+    transition: border-color 0.15s;
+  }
+  .api-key-row input:focus {
+    border-color: var(--accent);
+  }
+  .api-key-row input::placeholder { color: var(--text-hint); }
+  .toggle-key {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .toggle-key:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-validate {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-validate:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-validate:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-validate .v-spin {
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+    vertical-align: -2px;
+    margin-right: 4px;
+  }
+  .validate-result {
+    font-size: 12px;
+    margin-top: 8px;
+    display: none;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+  }
+  .validate-result.show { display: block; }
+  .validate-result.success {
+    background: #f0fdf4;
+    color: #166534;
+    border: 0.5px solid #86efac;
+  }
+  .validate-result.fail {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 0.5px solid #fca5a5;
+  }
+  .validate-result.info {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 0.5px solid #93c5fd;
+  }
+
+  /* ====== Download Path ====== */
+  .dl-path-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .dl-path-row input {
+    flex: 1;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    font-family: "SF Mono", "Fira Code", monospace;
+    transition: border-color 0.15s;
+  }
+  .dl-path-row input:focus { border-color: var(--accent); }
+  .dl-path-row input::placeholder { color: var(--text-hint); }
+  .btn-pick-dir {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-pick-dir:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-pick-dir svg { vertical-align: -3px; margin-right: 4px; }
+
+  /* ====== Link Status Badge ====== */
+  .link-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 20px;
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    z-index: 2;
+    backdrop-filter: blur(8px);
+  }
+  .link-status.ok { background: rgba(16,185,129,0.7); color: #fff; }
+  .link-status.fail { background: rgba(239,68,68,0.7); color: #fff; }
+  .link-status.checking { background: rgba(245,158,11,0.7); color: #fff; }
+  .link-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  /* ====== AI 写提示词 ====== */
+  .btn-ai-write {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 9px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .btn-ai-write:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-ai-write:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ai-write .ai-spin {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  .btn-ai-write.loading .ai-spin { display: block; }
+  .btn-ai-write.loading svg { display: none; }
+  .ai-result-msg {
+    font-size: 12px;
+    margin-top: 8px;
+    display: none;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+  }
+  .ai-result-msg.show { display: block; }
+  .ai-result-msg.success { background: #f0fdf4; color: #166534; border: 0.5px solid #86efac; }
+  .ai-result-msg.fail { background: #fef2f2; color: #991b1b; border: 0.5px solid #fca5a5; }
+  .ai-result-msg.info { background: #eff6ff; color: #1e40af; border: 0.5px solid #93c5fd; }
+
+  /* ====== 图片参考分析 ====== */
+  .img-ref-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .img-ref-row input {
+    flex: 1;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .img-ref-row input:focus { border-color: var(--accent); }
+  .img-ref-row input::placeholder { color: var(--text-hint); }
+  .btn-analyze-img {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: transparent;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .btn-analyze-img:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn-analyze-img:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-img-clear {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-hint);
+    font-size: 12px;
+    padding: 2px 4px;
+    margin-left: 4px;
+    transition: color 0.15s;
+  }
+  .btn-img-clear:hover { color: #ef4444; }
+  .img-analysis-result {
+    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    display: none;
+    line-height: 1.6;
+  }
+  .img-analysis-result.show { display: block; }
+  .img-analysis-result.success {
+    background: #f0fdf4;
+    color: #166534;
+    border: 0.5px solid #86efac;
+  }
+  .img-analysis-result.fail {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 0.5px solid #fca5a5;
+  }
+  .img-analysis-result.info {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 0.5px solid #93c5fd;
+  }
+  .img-analysis-result .analysis-label {
+    font-weight: 500;
+    margin-bottom: 4px;
+    font-size: 11px;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* ====== AI 辅助卡片 ====== */
+  .ai-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .ai-card-header .ai-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #5b5bd6, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+  }
+  .ai-card-header .ai-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .ai-card-header .ai-badge {
+    font-size: 10px;
+    font-weight: 500;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .ai-section-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .ai-input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .ai-input-row input {
+    flex: 1;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .ai-input-row input:focus { border-color: var(--accent); }
+  .ai-input-row input::placeholder { color: var(--text-hint); }
+  .ai-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .ai-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .ai-btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .ai-btn.primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .ai-btn.primary:disabled { opacity: 0.5; }
+  .ai-btn .ai-spin {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(91,91,214,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 4px;
+    flex-shrink: 0;
+  }
+  .ai-btn.primary .ai-spin {
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+  }
+  .ai-btn.loading .ai-spin { display: block; }
+  .ai-btn.loading svg,
+  .ai-btn.loading span:not(.ai-spin) { display: none; }
+  .ai-result-card {
+    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    margin-top: 10px;
+    display: none;
+    line-height: 1.6;
+  }
+  .ai-result-card.show { display: block; }
+  .ai-result-card.success { background: #f0fdf4; color: #166534; border: 0.5px solid #86efac; }
+  .ai-result-card.fail { background: #fef2f2; color: #991b1b; border: 0.5px solid #fca5a5; }
+  .ai-result-card.info { background: #eff6ff; color: #1e40af; border: 0.5px solid #93c5fd; }
+  .ai-result-card .result-label {
+    font-weight: 500;
+    margin-bottom: 4px;
+    font-size: 11px;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ai-result-card .result-clear {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.5;
+    font-size: 11px;
+    padding: 2px 4px;
+    transition: opacity 0.15s;
+  }
+  .ai-result-card .result-clear:hover { opacity: 1; }
+
+  /* ====== 提示词选择器 ====== */
+  .prompt-picker {
+    display: none;
+    margin-top: 12px;
+  }
+  .prompt-picker.show { display: block; }
+  .prompt-picker .picker-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .prompt-option {
+    position: relative;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .prompt-option:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .prompt-option.selected {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    box-shadow: 0 0 0 2px rgba(91,91,214,0.15);
+  }
+  .prompt-option .opt-num {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .prompt-option .opt-num .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+  .prompt-option.selected .opt-num::after {
+    content: '已选中';
+    font-size: 10px;
+    background: var(--accent);
+    color: #fff;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 400;
+  }
+  .prompt-option .opt-copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    opacity: 0;
+    transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+    z-index: 2;
+  }
+  .prompt-option:hover .opt-copy-btn,
+  .prompt-option.selected .opt-copy-btn {
+    opacity: 1;
+  }
+  .prompt-option .opt-copy-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .prompt-option .opt-copy-btn.copied {
+    border-color: #10b981;
+    color: #10b981;
+    background: #ecfdf5;
+  }
+  .prompt-wrap {
+    position: relative;
+  }
+  .prompt-wrap textarea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px 44px 16px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.6;
+    transition: border-color 0.15s;
+  }
+  .prompt-wrap textarea:focus { border-color: var(--accent); }
+  .prompt-wrap textarea::placeholder { color: var(--text-hint); }
+  .prompt-footer {
+    position: absolute;
+    bottom: 10px;
+    left: 16px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  .char-count { font-size: 12px; color: var(--text-hint); }
+
+  /* ====== 文案替换笔刷 ====== */
+  .brush-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .brush-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .brush-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .brush-btn.active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 500;
+    box-shadow: 0 0 0 2px rgba(91,91,214,0.15);
+  }
+  .brush-btn.active .brush-dot {
+    animation: brushPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes brushPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+  }
+  .brush-target-badge {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--accent);
+    max-width: 360px;
+    overflow: hidden;
+  }
+  .brush-target-badge.show { display: flex; }
+  .brush-target-badge .target-label {
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+  .brush-target-badge .target-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 400;
+    color: var(--text);
+  }
+  .brush-clear-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    font-family: inherit;
+  }
+  .brush-clear-btn:hover { opacity: 1; }
+
+  /* 笔刷模式 textarea 样式 */
+  .prompt-wrap.brush-mode textarea {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(91,91,214,0.1), inset 0 0 0 1px rgba(91,91,214,0.05);
+    caret-color: var(--accent);
+    background: linear-gradient(135deg, var(--surface2) 0%, var(--accent-light) 100%);
+    background-size: 200% 200%;
+    animation: brushBg 3s ease-in-out infinite;
+    cursor: text;
+  }
+  @keyframes brushBg {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .prompt-wrap.brush-mode::after {
+    content: '🖌️ 笔刷已激活 · 请框选要替换的文字';
+    position: absolute;
+    top: -26px;
+    left: 0;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 500;
+    pointer-events: none;
+    animation: fadeInDown 0.3s ease;
+  }
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  /* 笔刷模式下提示词选择器样式提示 */
+  .prompt-picker.brush-mode .picker-label::after {
+    content: '（将替换选中文字，而非全部填入）';
+    font-size: 10px;
+    color: var(--accent);
+    font-weight: 400;
+    opacity: 0.8;
+  }
+
+  /* ====== Options Row ====== */
+  .options-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+  .option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  .option-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* ====== Segment / Pills ====== */
+  .segment {
+    display: flex;
+    gap: 4px;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+  }
+  .segment button {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .segment button.active {
+    background: var(--surface);
+    color: var(--accent);
+    font-weight: 500;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .segment button:hover:not(.active) { color: var(--text); }
+
+  /* ====== Ratio Grid ====== */
+  .ratio-grid {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .ratio-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: var(--surface2);
+    transition: all 0.15s;
+    font-family: inherit;
+    min-width: 52px;
+  }
+  .ratio-btn:hover { border-color: var(--accent); }
+  .ratio-btn.active {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+  .ratio-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ratio-icon span {
+    background: currentColor;
+    border-radius: 2px;
+    opacity: 0.6;
+    display: block;
+  }
+  .ratio-btn .label {
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* ====== Count Stepper ====== */
+  .count-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .count-btn {
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .count-btn:hover:not(:disabled) { background: var(--border); color: var(--accent); }
+  .count-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .count-display {
+    min-width: 36px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    border-left: 0.5px solid var(--border);
+    border-right: 0.5px solid var(--border);
+    padding: 0 4px;
+    line-height: 36px;
+  }
+
+  /* ====== Action Row ====== */
+  .action-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn-generate {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn-generate:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-generate:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-generate .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  .btn-generate.loading .spinner { display: block; }
+  .btn-generate.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-hint);
+  }
+  .status-dot.working { background: #f59e0b; animation: pulse 1.2s infinite; }
+  .status-dot.done { background: #10b981; }
+  .status-dot.error { background: #ef4444; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ====== Error ====== */
+  .error-box {
+    background: #fff5f5;
+    border: 0.5px solid #fca5a5;
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #b91c1c;
+    margin-top: 12px;
+    display: none;
+  }
+  .error-box.show { display: block; }
+
+  /* ====== Result Grid v2 ====== */
+  .result-section { margin-top: 8px; }
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .result-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .result-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .image-grid-v2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .image-card {
+    position: relative;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  .image-card .card-img-wrap {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+  }
+  .image-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.25s;
+  }
+  .image-card:hover img { transform: scale(1.03); }
+  .image-card .ai-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    font-weight: 400;
+  }
+  .image-card .card-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 8px 4px;
+    background: var(--surface);
+    border-top: 0.5px solid var(--border);
+    gap: 2px;
+  }
+  .toolbar-btn {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .toolbar-btn:hover { background: var(--surface2); color: var(--accent); }
+  .toolbar-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+  .card-skeleton {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .card-error {
+    padding: 32px 12px;
+    text-align: center;
+    font-size: 12px;
+    color: #ef4444;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ====== Global toolbar (batch operations) ====== */
+  .global-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-toolbar:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .btn-toolbar.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-toolbar.primary:hover { background: var(--accent-hover); }
+  .btn-toolbar svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* ====== Empty State ====== */
+  .empty-state {
+    text-align: center;
+    padding: 56px 24px;
+    color: var(--text-hint);
+  }
+  .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.4;
+    line-height: 1;
+  }
+  .empty-state p { font-size: 14px; }
+
+  /* ====== Modal ====== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 24px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: var(--radius-md);
+    object-fit: contain;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-close {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    font-family: inherit;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.25); }
+
+  /* ====== Tips ====== */
+  .tips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .tip-chip {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tip-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  /* responsive */
+  @media (max-width: 500px) {
+    .header h1 { font-size: 20px; }
+    .options-row { gap: 8px; }
+    .image-grid-v2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Seedream 4.5 图片生成</h1>
+  <p>基于豆包 Doubao-Seedream-4.5 模型，输入提示词生成图片</p>
+</div>
+
+<div class="main">
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      API 配置
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <!-- 图片生成 -->
+      <div style="flex:1;min-width:240px;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:500;">图片生成 API</div>
+        <div class="api-key-row">
+          <input type="password" id="apiKey" placeholder="Seedream API Key" autocomplete="off" />
+          <button class="toggle-key" onclick="toggleKey('apiKey', this)">显示</button>
+          <button class="btn-validate" id="imgValidateBtn" onclick="validateApiKey()">验证</button>
+        </div>
+        <div class="validate-result" id="validateResult"></div>
+        <div style="margin-top:4px;font-size:11px;color:var(--text-hint);">
+          模型：<code style="background:var(--surface2);padding:1px 6px;border-radius:4px;">doubao-seedream-4-5-251128</code>
+        </div>
+      </div>
+      <!-- 语言大模型 -->
+      <div style="flex:1;min-width:240px;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:500;">语言大模型 · 提示词优化</div>
+        <div class="api-key-row">
+          <input type="password" id="llmKey" placeholder="LLM API Key（写提示词用）" autocomplete="off" />
+          <button class="toggle-key" onclick="toggleKey('llmKey', this)">显示</button>
+          <button class="btn-validate" id="llmValidateBtn" onclick="validateLlmKey()">验证</button>
+        </div>
+        <div class="validate-result" id="llmValidateResult"></div>
+        <div style="margin-top:4px;font-size:11px;color:var(--text-hint);">
+          模型：<code style="background:var(--surface2);padding:1px 6px;border-radius:4px;">doubao-seed-2-0-code-preview-260215</code>
+          （支持文本+图片理解）
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:8px; font-size:11px; color:var(--text-hint);">
+      接口地址：<code style="background:var(--surface2);padding:1px 6px;border-radius:4px;">https://ark.cn-beijing.volces.com/api/v3</code>
+    </div>
+  </div>
+
+  <!-- 下载设置 -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      下载设置
+    </div>
+    <div class="dl-path-row">
+      <input type="text" id="dlPath" placeholder="此电脑 > 下载 (C:\Users\ADMIN\Downloads)" />
+      <button class="btn-pick-dir" id="pickDirBtn" onclick="pickDownloadDir()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        选择文件夹
+      </button>
+      <button class="toggle-key" style="padding:10px 14px;" onclick="resetDlPath()">重置</button>
+    </div>
+    <div style="margin-top:6px; font-size:11px; color:var(--text-hint);">
+      文件名格式：<code style="background:var(--surface2);padding:1px 6px;border-radius:4px;">图片名_序号_时间戳</code>
+      · 如已选择本地文件夹，图片将直接保存到该目录
+    </div>
+  </div>
+
+  <!-- Prompt & Options -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+      提示词
+    </div>
+    <div class="prompt-wrap">
+      <textarea id="prompt" placeholder="描述你想要生成的图片内容，支持中英文..." oninput="updateCharCount()"></textarea>
+      <div class="prompt-footer">
+        <span class="char-count" id="charCount">0 字</span>
+      </div>
+    </div>
+    <!-- 文案替换笔刷 -->
+    <div class="brush-toolbar" id="brushToolbar">
+      <button class="brush-btn" id="brushBtn" onclick="toggleBrush()" title="激活笔刷后，框选提示词中的文字，再点击 AI 生成的提示词即可一键替换">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M9.06 11.9l3.04 3.04L18.37 8.67a2.5 2.5 0 0 0-3.54-3.54L8.67 11.3l3.04 3.04"/>
+          <path d="M7.93 13.05l-4.78 4.78a1.5 1.5 0 1 0 2.12 2.12l4.78-4.78"/>
+          <line x1="2" y1="22" x2="8" y2="16"/>
+          <circle cx="4" cy="20" r="1" fill="currentColor"/>
+        </svg>
+        <span class="brush-dot" style="width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;"></span>
+        笔刷替换
+      </button>
+      <div class="brush-target-badge" id="brushTargetBadge">
+        <span class="target-label">🎯 目标:</span>
+        <span class="target-text" id="brushTargetText"></span>
+        <button class="brush-clear-btn" onclick="clearBrush()" title="清除笔刷">✕</button>
+      </div>
+    </div>
+    <div class="tips" id="tips">
+      <span class="tip-chip" onclick="useTip(this)">夕阳下的城市天际线，霓虹灯光</span>
+      <span class="tip-chip" onclick="useTip(this)">水墨风格山水画，意境深远</span>
+      <span class="tip-chip" onclick="useTip(this)">赛博朋克风格，未来都市夜景</span>
+      <span class="tip-chip" onclick="useTip(this)">可爱的柴犬，坐在草地上</span>
+      <span class="tip-chip" onclick="useTip(this)">极简主义建筑摄影，白色空间</span>
+    </div>
+
+    <!-- Options -->
+    <div class="options-row" style="margin-top:20px;">
+
+      <!-- Resolution -->
+      <div class="option-group">
+        <div class="option-label">分辨率</div>
+        <div class="segment" id="resSeg">
+          <button class="active" data-val="2K" onclick="selectRes(this)">2K</button>
+          <button data-val="4K" onclick="selectRes(this)">4K</button>
+        </div>
+      </div>
+
+      <!-- Aspect Ratio -->
+      <div class="option-group">
+        <div class="option-label">图片比例</div>
+        <div class="ratio-grid" id="ratioGrid"></div>
+      </div>
+
+      <!-- Count -->
+      <div class="option-group" style="margin-left:auto;">
+        <div class="option-label">生成数量（最多 8 张）</div>
+        <div class="count-wrap">
+          <button class="count-btn" id="countDec" onclick="adjustCount(-1)">−</button>
+          <div class="count-display" id="countDisplay">4</div>
+          <button class="count-btn" id="countInc" onclick="adjustCount(1)">+</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Action Row -->
+    <div class="action-row">
+      <button class="btn-generate" id="genBtn" onclick="generate()">
+        <span class="spinner"></span>
+        <span class="btn-text">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-3px;margin-right:4px;">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          开始生成
+        </span>
+      </button>
+      <div class="status-badge" id="statusBadge">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">等待生成</span>
+      </div>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <!-- AI 智能辅助 -->
+  <div class="card">
+    <div class="ai-card-header">
+      <div class="ai-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.5 2.1-1.2 2.8L18 12c.7-.3 1.5-.5 2.3-.5a4 4 0 0 1 0 8c-.8 0-1.6-.2-2.3-.5L14.8 22c.7.7 1.2 1.7 1.2 2.8a4 4 0 0 1-8 0c0-1.1.5-2.1 1.2-2.8L6 19c-.7.3-1.5.5-2.3.5a4 4 0 0 1 0-8c.8 0 1.6.2 2.3.5L9.2 9c-.7-.7-1.2-1.7-1.2-2.8a4 4 0 0 1 8 0z"/></svg>
+      </div>
+      <span class="ai-title">AI 智能辅助</span>
+      <span class="ai-badge">doubao-seed</span>
+    </div>
+
+    <!-- 参考图片分析 -->
+    <div class="ai-section-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.6;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      参考图片分析
+    </div>
+    <div class="ai-input-row">
+      <input type="text" id="imgRefUrl" placeholder="粘贴参考图片的 URL，AI 帮你分析画面内容…" onkeydown="if(event.key==='Enter')analyzeReferenceImage()"/>
+      <button class="ai-btn" id="analyzeImgBtn" onclick="analyzeReferenceImage()">
+        <span class="ai-spin"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        分析图片
+      </button>
+    </div>
+    <div class="ai-result-card" id="imgAnalysisResult"></div>
+
+    <!-- 分隔 -->
+    <div style="height:1px;background:var(--border);margin:16px 0;"></div>
+
+    <!-- AI 写提示词 -->
+    <div class="ai-section-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.6;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      智能写提示词
+    </div>
+    <div class="ai-input-row">
+      <input type="text" id="aiIdeaInput" placeholder="简单描述你想要的画面，AI 帮你扩展为详细提示词…" onkeydown="if(event.key==='Enter')aiWritePrompt()"/>
+      <button class="ai-btn primary" id="aiWriteBtn" onclick="aiWritePrompt()">
+        <span class="ai-spin"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        生成提示词
+      </button>
+    </div>
+    <div class="ai-result-card" id="aiResultMsg"></div>
+
+    <!-- 提示词选择器 -->
+    <div class="prompt-picker" id="promptPicker">
+      <div class="picker-label">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.6;"><polyline points="20 6 9 17 4 12"/></svg>
+        点击选择你喜欢的提示词
+      </div>
+      <div id="promptOptions"></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card result-section" id="resultCard">
+    <div class="result-header">
+      <div class="result-title">生成结果</div>
+      <div class="result-meta" id="resultMeta"></div>
+    </div>
+    <div class="image-grid-v2" id="imageGrid"></div>
+    <div class="global-toolbar" id="globalToolbar" style="display:none;">
+      <button class="btn-toolbar primary" onclick="regenerateCurrent()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        再次生图
+      </button>
+      <button class="btn-toolbar" onclick="batchDownload()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        全部下载
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <button class="modal-close" onclick="closeModal(null)">✕</button>
+  <img class="modal-img" id="modalImg" src="" alt="预览" />
+</div>
+
+<script>
+// ===== State =====
+const RATIOS = [
+  { label: '1:1',  w: 36, h: 36, size2k: '2048x2048', size4k: '4096x4096' },
+  { label: '4:3',  w: 40, h: 30, size2k: '2304x1728', size4k: '3520x4704' },
+  { label: '3:4',  w: 30, h: 40, size2k: '1728x2304', size4k: '4704x3520' },
+  { label: '16:9', w: 44, h: 25, size2k: '2848x1600', size4k: '5504x3040' },
+  { label: '9:16', w: 25, h: 44, size2k: '1600x2848', size4k: '3040x5504' },
+  { label: '3:2',  w: 42, h: 28, size2k: '2496x1664', size4k: '3328x4992' },
+  { label: '2:3',  w: 28, h: 42, size2k: '1664x2496', size4k: '4992x3328' },
+  { label: '21:9', w: 50, h: 21, size2k: '3136x1344', size4k: '6240x2656' },
+];
+
+let state = {
+  resolution: '2K',
+  ratio: '16:9',
+  count: 4,
+  generating: false,
+  images: [],
+  downloadDir: null,
+  downloadDirHandle: null,
+  imageAnalysis: null,
+  brushActive: false,
+  brushTarget: null,
+};
+
+// ===== Brush (文案替换笔刷) =====
+function toggleBrush() {
+  state.brushActive = !state.brushActive;
+  const btn = document.getElementById('brushBtn');
+  const wrap = document.querySelector('.prompt-wrap');
+  const picker = document.getElementById('promptPicker');
+  const ta = document.getElementById('prompt');
+
+  if (state.brushActive) {
+    btn.classList.add('active');
+    btn.querySelector('.brush-dot').style.background = '#10b981';
+    wrap.classList.add('brush-mode');
+    picker.classList.add('brush-mode');
+    state.brushTarget = null;
+    updateBrushBadge();
+    // 自动聚焦提示词框方便框选
+    ta.focus();
+  } else {
+    btn.classList.remove('active');
+    btn.querySelector('.brush-dot').style.background = 'var(--accent)';
+    wrap.classList.remove('brush-mode');
+    picker.classList.remove('brush-mode');
+    state.brushTarget = null;
+    updateBrushBadge();
+  }
+}
+
+function handleBrushSelect() {
+  if (!state.brushActive) return;
+  // 用 setTimeout 确保 selection 已更新
+  setTimeout(() => {
+    const ta = document.getElementById('prompt');
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    if (start !== end) {
+      const selectedText = ta.value.substring(start, end);
+      if (selectedText.trim().length > 0) {
+        state.brushTarget = selectedText;
+        updateBrushBadge();
+      }
+    }
+  }, 10);
+}
+
+function clearBrush() {
+  state.brushActive = false;
+  state.brushTarget = null;
+  const btn = document.getElementById('brushBtn');
+  const wrap = document.querySelector('.prompt-wrap');
+  const picker = document.getElementById('promptPicker');
+  btn.classList.remove('active');
+  btn.querySelector('.brush-dot').style.background = 'var(--accent)';
+  wrap.classList.remove('brush-mode');
+  picker.classList.remove('brush-mode');
+  updateBrushBadge();
+}
+
+function updateBrushBadge() {
+  const badge = document.getElementById('brushTargetBadge');
+  const textEl = document.getElementById('brushTargetText');
+  if (state.brushTarget && state.brushActive) {
+    textEl.textContent = state.brushTarget.length > 30
+      ? state.brushTarget.substring(0, 30) + '…'
+      : state.brushTarget;
+    textEl.title = state.brushTarget;
+    badge.classList.add('show');
+  } else {
+    badge.classList.remove('show');
+    textEl.textContent = '';
+    textEl.title = '';
+  }
+}
+
+// ===== Init =====
+function init() {
+  buildRatioGrid();
+  updateCountBtns();
+  loadKey();
+  loadDlPath();
+  // 笔刷文字选区监听
+  document.getElementById('prompt').addEventListener('mouseup', handleBrushSelect);
+  document.getElementById('prompt').addEventListener('keyup', function(e) {
+    // Shift+方向键选字也触发
+    if (e.shiftKey && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) {
+      handleBrushSelect();
+    }
+  });
+}
+
+function buildRatioGrid() {
+  const grid = document.getElementById('ratioGrid');
+  grid.innerHTML = RATIOS.map(r => `
+    <button class="ratio-btn ${r.label === state.ratio ? 'active' : ''}" data-ratio="${r.label}" onclick="selectRatio(this)">
+      <div class="ratio-icon" style="width:${Math.max(r.w,24)}px;height:${Math.max(r.h,24)}px;">
+        <span style="width:${r.w * 0.7}px;height:${r.h * 0.7}px;"></span>
+      </div>
+      <div class="label">${r.label}</div>
+    </button>
+  `).join('');
+}
+
+// ===== Resolution =====
+function selectRes(btn) {
+  document.querySelectorAll('#resSeg button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.resolution = btn.dataset.val;
+}
+
+// ===== Ratio =====
+function selectRatio(btn) {
+  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.ratio = btn.dataset.ratio;
+}
+
+// ===== Count =====
+function adjustCount(delta) {
+  state.count = Math.max(1, Math.min(8, state.count + delta));
+  document.getElementById('countDisplay').textContent = state.count;
+  updateCountBtns();
+}
+function updateCountBtns() {
+  document.getElementById('countDec').disabled = state.count <= 1;
+  document.getElementById('countInc').disabled = state.count >= 8;
+}
+
+// ===== API Key =====
+function toggleKey(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '隐藏'; }
+  else { inp.type = 'password'; btn.textContent = '显示'; }
+}
+function loadKey() {
+  const k = localStorage.getItem('seedream_api_key');
+  document.getElementById('apiKey').value = k || 'ark-8bc72bc3-1699-41f0-ba19-e28dc2252cc6-d28c4';
+  const lk = localStorage.getItem('seedream_llm_key');
+  document.getElementById('llmKey').value = lk || 'ark-87ca3316-a00a-4e9b-a185-6c668299954a-aea0c';
+}
+// ===== Char Count =====
+function updateCharCount() {
+  const len = document.getElementById('prompt').value.length;
+  document.getElementById('charCount').textContent = len + ' 字';
+}
+
+// ===== 图片参考分析 =====
+async function analyzeReferenceImage() {
+  const url = document.getElementById('imgRefUrl').value.trim();
+  if (!url) { showImgAnalysis('fail', '请先粘贴参考图片的 URL 地址'); return; }
+
+  if (!isValidUrl(url)) { showImgAnalysis('fail', '请输入有效的图片 URL 地址'); return; }
+
+  const apiKey = document.getElementById('llmKey').value.trim();
+  if (!apiKey) { showImgAnalysis('fail', '请先填写语言大模型 API Key'); return; }
+
+  const btn = document.getElementById('analyzeImgBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  showImgAnalysis('info', '正在分析图片内容…');
+
+  try {
+    const resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey,
+      },
+      body: JSON.stringify({
+        model: 'doubao-seed-2-0-code-preview-260215',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: { url: url },
+              },
+              {
+                type: 'text',
+                text: '请详细描述这张图片的内容，包括：主体元素、构图、色彩、光影、风格、氛围、细节。用中文回答，描述越详细越好，控制在100-200字。直接输出描述文本，不要加任何前缀或后缀。',
+              },
+            ],
+          },
+        ],
+        max_tokens: 500,
+      }),
+    });
+
+    if (!resp.ok) {
+      let msg = '';
+      try { const j = await resp.json(); msg = j.error?.message || j.message || ''; } catch(_) {}
+      if (resp.status === 401) msg = 'API Key 无效';
+      else if (resp.status === 429) msg = '请求频繁，稍后重试';
+      throw new Error(msg || 'HTTP ' + resp.status);
+    }
+
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('AI 未返回分析结果');
+
+    state.imageAnalysis = {
+      url: url,
+      description: content.trim(),
+    };
+    showImgAnalysis('success', content.trim());
+    saveLlmKey(apiKey);
+  } catch (e) {
+    showImgAnalysis('fail', '分析失败: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+function showImgAnalysis(type, msg) {
+  const el = document.getElementById('imgAnalysisResult');
+  if (type === 'success' && state.imageAnalysis) {
+    el.innerHTML = '<div class="result-label"><span>分析完成</span><button class="result-clear" onclick="clearImageAnalysis()">清除</button></div>' + msg;
+  } else if (type === 'info') {
+    el.innerHTML = msg;
+  } else if (type === 'fail') {
+    el.innerHTML = msg;
+  } else {
+    el.textContent = msg;
+  }
+  el.className = 'ai-result-card show ' + type;
+}
+
+function clearImageAnalysis() {
+  state.imageAnalysis = null;
+  document.getElementById('imgRefUrl').value = '';
+  document.getElementById('imgAnalysisResult').className = 'ai-result-card';
+}
+async function aiWritePrompt() {
+  const idea = document.getElementById('aiIdeaInput').value.trim();
+  const hasImage = state.imageAnalysis && state.imageAnalysis.description;
+
+  if (!idea && !hasImage) { showAiMsg('fail', '请先输入画面描述或分析参考图片'); return; }
+
+  const apiKey = document.getElementById('llmKey').value.trim();
+  if (!apiKey) { showAiMsg('fail', '请先填写语言大模型 API Key'); return; }
+
+  const btn = document.getElementById('aiWriteBtn');
+  const origHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.classList.add('loading');
+  showAiMsg('info', hasImage ? '正在结合参考图构思提示词…' : '正在构思提示词…');
+
+  const ratio = state.ratio;
+  const res = state.resolution;
+
+  // 构建用户消息
+  let userContent = '';
+  if (hasImage && idea) {
+    userContent = `请根据以下参考图片分析结果和补充描述，生成 3 个不同风格的中文提示词（图片比例 ${ratio}，分辨率 ${res}）。
+
+【参考图片分析】
+${state.imageAnalysis.description}
+
+【补充描述】
+${idea}
+
+请结合参考图的风格和内容，融合补充描述的意图，生成 3 个各有特色的提示词。`;
+  } else if (hasImage) {
+    userContent = `请根据以下参考图片的分析结果，生成 3 个不同风格的中文提示词（图片比例 ${ratio}，分辨率 ${res}）。
+
+【参考图片分析】
+${state.imageAnalysis.description}
+
+请保持与参考图类似的风格和氛围，生成 3 个各有侧重点的提示词。`;
+  } else {
+    userContent = `请将以下画面描述扩展为 3 个不同风格的中文提示词（图片比例 ${ratio}，分辨率 ${res}）：\n\n${idea}`;
+  }
+
+  try {
+    const resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey,
+      },
+      body: JSON.stringify({
+        model: 'doubao-seed-2-0-code-preview-260215',
+        messages: [
+          {
+            role: 'system',
+            content: `你是一个专业的AI绘画提示词撰写专家。用户会给你画面描述（可能包含参考图片分析结果），你需要生成 3 个不同风格的中文提示词，用于图像生成模型（如Seedream 4.5）。
+
+要求：
+1. 生成恰好 3 个提示词，每个之间用单独一行的 "---" 分隔
+2. 所有提示词必须使用中文，包含具体的视觉细节（构图、光影、色彩、风格、氛围）
+3. 每个提示词长度控制在 50-150 个中文字
+4. 3 个提示词要在风格/氛围/侧重点上有所区别（例如：一个偏写实、一个偏艺术感、一个偏氛围感）
+5. 考虑用户当前设置的图片比例 ${ratio}
+6. 不要输出任何解释、引号、编号、前言或后缀，直接输出提示词
+
+示例输出格式：
+夕阳洒在未来城市的天际线上，温暖的金色光芒映照在玻璃摩天大楼表面，霓虹全息广告牌闪烁着蓝紫色光芒，鸟瞰视角，电影级构图，景深效果，赛博朋克美学，高精细度，专业数字艺术风格
+---
+水墨风格的江南水乡，薄雾笼罩着古老的石桥和青瓦白墙，垂柳轻拂水面，倒影朦胧，留白构图，淡雅的青灰色调，写意山水画风，意境悠远
+---
+极简主义建筑空间摄影，纯白色几何结构，柔和的自然光从大面积落地窗倾泻而入，光影对比强烈，对称构图，现代主义设计，干净利落`
+          },
+          {
+            role: 'user',
+            content: userContent,
+          }
+        ],
+        temperature: 0.9,
+        max_tokens: 1200,
+      }),
+    });
+
+    if (!resp.ok) {
+      let msg = '';
+      try { const j = await resp.json(); msg = j.error?.message || j.message || ''; } catch(_) {}
+      if (resp.status === 401) msg = 'API Key 无效';
+      else if (resp.status === 429) msg = '请求频繁，稍后重试';
+      throw new Error(msg || 'HTTP ' + resp.status);
+    }
+
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('AI 未返回内容');
+
+    // 解析多个提示词：用 --- 分隔
+    const prompts = content.split('\n---\n').map(s => s.trim()).filter(s => s.length > 0);
+
+    if (prompts.length === 0) throw new Error('未能解析出有效的提示词');
+
+    // 渲染提示词选择器
+    renderPromptOptions(prompts, hasImage);
+    saveLlmKey(apiKey);
+  } catch (e) {
+    showAiMsg('fail', '失败: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+}
+
+// ===== 提示词选择器 =====
+function renderPromptOptions(prompts, hasImage) {
+  const container = document.getElementById('promptOptions');
+  const picker = document.getElementById('promptPicker');
+
+  const styleLabels = ['风格一', '风格二', '风格三'];
+  let html = '';
+  prompts.forEach((p, i) => {
+    html += `<div class="prompt-option" onclick="selectPrompt(this, ${i})" data-prompt="${escapeHTML(p)}">
+      <button class="opt-copy-btn" onclick="event.stopPropagation(); copyPrompt(this, '${escapeHTML(p.replace(/'/g, "\\'"))}')" title="复制此提示词">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        复制
+      </button>
+      <div class="opt-num"><span class="dot"></span>${styleLabels[i] || '选项 ' + (i + 1)}</div>
+      <div class="opt-text">${escapeHTML(p)}</div>
+    </div>`;
+  });
+  container.innerHTML = html;
+  picker.classList.add('show');
+  showAiMsg('success', '已生成 ' + prompts.length + ' 个提示词，请点击选择');
+}
+
+function selectPrompt(el, idx) {
+  // 取消其他选中
+  document.querySelectorAll('.prompt-option').forEach(o => o.classList.remove('selected'));
+  // 选中当前
+  el.classList.add('selected');
+  // 获取提示词框
+  const promptEl = document.getElementById('prompt');
+  const newPrompt = el.dataset.prompt;
+  const styleLabel = ['一','二','三','四','五'][idx];
+
+  if (state.brushActive && state.brushTarget) {
+    // 笔刷模式：替换选中文字，而非替换全部
+    const currentText = promptEl.value;
+    if (!currentText.includes(state.brushTarget)) {
+      // 目标文字已被修改，提示用户
+      showAiMsg('fail', '目标文字「' + (state.brushTarget.length > 20 ? state.brushTarget.substring(0,20)+'…' : state.brushTarget) + '」已在提示词中消失，请重新框选');
+      state.brushTarget = null;
+      updateBrushBadge();
+      return;
+    }
+    // 执行替换（只替换第一个匹配）
+    const replacedText = currentText.replace(state.brushTarget, newPrompt);
+    promptEl.value = replacedText;
+    updateCharCount();
+    promptEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showAiMsg('success', '已用风格' + styleLabel + '替换选中文字 ✨');
+  } else {
+    // 普通模式：直接填入整个提示词框
+    promptEl.value = newPrompt;
+    updateCharCount();
+    promptEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showAiMsg('success', '已选中风格' + styleLabel + '，提示词已填入输入框');
+  }
+}
+
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function copyPrompt(el, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    el.classList.add('copied');
+    el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> 已复制`;
+    setTimeout(() => {
+      el.classList.remove('copied');
+      el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制`;
+    }, 1500);
+  }).catch(() => {
+    // 回退方案
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    el.classList.add('copied');
+    el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> 已复制`;
+    setTimeout(() => {
+      el.classList.remove('copied');
+      el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 复制`;
+    }, 1500);
+  });
+}
+
+function showAiMsg(type, msg) {
+  const el = document.getElementById('aiResultMsg');
+  el.className = 'ai-result-card show ' + type;
+  el.textContent = msg;
+}
+
+// ===== Get Size =====
+function getSize() {
+  const r = RATIOS.find(x => x.label === state.ratio);
+  return state.resolution === '4K' ? r.size4k : r.size2k;
+}
+
+// ===== Generate =====
+async function generate() {
+  if (state.generating) return;
+
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const prompt = document.getElementById('prompt').value.trim();
+
+  if (!apiKey) { showError('请填写 API Key'); return; }
+  if (!prompt) { showError('请输入提示词'); return; }
+
+  saveImgKey(apiKey);
+  hideError();
+  setStatus('working', `正在生成 ${state.count} 张图片...`);
+  setLoading(true);
+
+  lastPrompt = prompt;
+  const size = getSize();
+  lastSize = size;
+  showSkeletons(state.count);
+
+  let doneCount = 0;
+  const startTime = Date.now();
+
+  // Generate each image
+  const promises = Array.from({ length: state.count }, (_, i) =>
+    generateOne(apiKey, prompt, size, i)
+      .then(url => {
+        doneCount++;
+        setStatus('working', `已完成 ${doneCount} / ${state.count} 张...`);
+        replaceSkeletonWithImage(i, url);
+        return { i, url };
+      })
+      .catch(err => {
+        doneCount++;
+        replaceSkeletonWithError(i, err.message);
+        return { i, error: err.message };
+      })
+  );
+
+  try {
+    await Promise.all(promises);
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    setStatus('done', `全部完成 · 耗时 ${elapsed}s`);
+    document.getElementById('resultMeta').textContent = `${state.count} 张 · ${size} · ${elapsed}s`;
+  } catch (e) {
+    setStatus('error', '生成出错');
+    showError(e.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function generateOne(apiKey, prompt, size, idx) {
+  const body = {
+    model: 'doubao-seedream-4-5-251128',
+    prompt: prompt,
+    size: size,
+    response_format: 'url',
+  };
+
+  let resp;
+  try {
+    resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    if (e.message.includes('NetworkError') || e.message.includes('Failed to fetch')) {
+      throw new Error('网络连接失败，请检查网络');
+    }
+    throw new Error('请求失败: ' + e.message);
+  }
+
+  if (!resp.ok) {
+    let msg = '';
+    try {
+      const json = await resp.json();
+      msg = json.error?.message || json.message || '';
+    } catch(_) {}
+
+    if (resp.status === 401) throw new Error('API Key 无效 (401)');
+    if (resp.status === 403) throw new Error('API Key 无权限 (403)');
+    if (resp.status === 429) throw new Error('请求过于频繁，请稍后重试 (429)');
+    if (resp.status >= 500) throw new Error('服务器错误 ' + resp.status + (msg ? ': ' + msg : ''));
+    throw new Error(msg || 'HTTP ' + resp.status);
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (_) {
+    throw new Error('响应解析失败');
+  }
+
+  if (!data?.data?.[0]?.url) {
+    throw new Error('API 响应中未包含图片链接');
+  }
+
+  const url = data.data[0].url;
+  if (!isValidUrl(url)) {
+    throw new Error('返回的图片链接格式无效');
+  }
+
+  return url;
+}
+
+function isValidUrl(str) {
+  try { const u = new URL(str); return u.protocol === 'http:' || u.protocol === 'https:'; }
+  catch(_) { return false; }
+}
+
+// ===== Skeleton / Image / Card =====
+let lastGeneratedUrls = [];
+let lastPrompt = '';
+let lastSize = '';
+
+function showSkeletons(n) {
+  lastGeneratedUrls = [];
+  const grid = document.getElementById('imageGrid');
+  grid.innerHTML = Array.from({ length: n }, (_, i) => `
+    <div class="image-card" id="imgCard${i}">
+      <div class="card-skeleton"></div>
+    </div>
+  `).join('');
+  document.getElementById('globalToolbar').style.display = 'none';
+}
+
+function buildImageCard(i, url) {
+  const idx = i + 1;
+  return `
+    <div class="card-img-wrap" onclick="openModal('${url}')">
+      <img src="${url}" alt="生成图 ${idx}" loading="lazy" onerror="this.parentElement.parentElement.innerHTML='<div class=\\'card-error\\'>加载失败</div>'" />
+      <div class="ai-badge">AI 生成</div>
+    </div>
+    <div class="card-toolbar">
+      <button class="toolbar-btn" onclick="event.stopPropagation();downloadImg('${url}', ${idx})" title="下载">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        下载
+      </button>
+      <button class="toolbar-btn" onclick="event.stopPropagation();regenerateSingle(${i})" title="重新生成这张">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        重绘
+      </button>
+    </div>
+  `;
+}
+
+function replaceSkeletonWithImage(i, url) {
+  lastGeneratedUrls[i] = url;
+  const card = document.getElementById('imgCard' + i);
+  if (!card) return;
+  card.innerHTML = buildImageCard(i, url);
+  if (lastGeneratedUrls.some(u => u)) {
+    document.getElementById('globalToolbar').style.display = 'flex';
+  }
+  checkLinkAvailability(url, i);
+}
+
+function replaceSkeletonWithError(i, msg) {
+  const card = document.getElementById('imgCard' + i);
+  if (!card) return;
+  card.innerHTML = `
+    <div class="card-error">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div style="margin-top:8px;">生成失败</div>
+      <div style="color:#999;font-size:11px;margin-top:4px;">${msg}</div>
+      <button class="toolbar-btn" style="margin-top:10px;" onclick="regenerateSingle(${i})">重试</button>
+    </div>
+  `;
+}
+
+// ===== Regenerate =====
+function regenerateCurrent() {
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!prompt) { showError('提示词不能为空，无法重新生成'); return; }
+  generate();
+}
+
+async function regenerateSingle(idx) {
+  if (state.generating) return;
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!apiKey || !prompt) { showError('请确保 API Key 和提示词已填写'); return; }
+
+  const card = document.getElementById('imgCard' + idx);
+  if (card) card.innerHTML = '<div class="card-skeleton"></div>';
+
+  const size = getSize();
+  try {
+    const url = await generateOne(apiKey, prompt, size, idx);
+    lastGeneratedUrls[idx] = url;
+    if (card) card.innerHTML = buildImageCard(idx, url);
+    checkLinkAvailability(url, idx);
+    setStatus('done', `第 ${idx + 1} 张重绘完成`);
+  } catch (e) {
+    if (card) {
+      card.innerHTML = `<div class="card-error">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div style="margin-top:8px;">重绘失败</div><div style="color:#999;font-size:11px;margin-top:4px;">${e.message}</div>
+        <button class="toolbar-btn" style="margin-top:10px;" onclick="regenerateSingle(${idx})">重试</button>
+      </div>`;
+    }
+    showError('第 ' + (idx + 1) + ' 张重绘失败: ' + e.message);
+  }
+}
+
+async function batchDownload() {
+  const urls = lastGeneratedUrls.filter(u => u);
+  if (!urls.length) { showError('没有可下载的图片'); return; }
+  setStatus('working', `正在准备下载 ${urls.length} 张...`);
+  for (let i = 0; i < urls.length; i++) {
+    await downloadImg(urls[i], i + 1);
+    if (i < urls.length - 1) await new Promise(r => setTimeout(r, 200));
+  }
+  setStatus('done', `已触发 ${urls.length} 张图片下载`);
+}
+
+// ===== Status / Error =====
+function setStatus(type, text) {
+  document.getElementById('statusText').textContent = text;
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot';
+  if (type === 'working') dot.classList.add('working');
+  else if (type === 'done') dot.classList.add('done');
+  else if (type === 'error') dot.classList.add('error');
+}
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = '错误：' + msg;
+  box.classList.add('show');
+}
+function hideError() { document.getElementById('errorBox').classList.remove('show'); }
+function setLoading(on) {
+  state.generating = on;
+  const btn = document.getElementById('genBtn');
+  btn.disabled = on;
+  btn.classList.toggle('loading', on);
+}
+
+// ===== Modal =====
+function openModal(url) {
+  document.getElementById('modalImg').src = url;
+  document.getElementById('modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal')) return;
+  document.getElementById('modal').classList.remove('show');
+  document.getElementById('modalImg').src = '';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(null); });
+
+// ===== Download =====
+function loadDlPath() {
+  const p = localStorage.getItem('seedream_dl_path');
+  if (p) {
+    state.downloadDir = p;
+    document.getElementById('dlPath').value = p;
+  } else {
+    const defaultPath = 'C:\\Users\\ADMIN\\Downloads';
+    state.downloadDir = defaultPath;
+    document.getElementById('dlPath').value = defaultPath;
+    saveDlPath(defaultPath);
+  }
+}
+function saveDlPath(p) {
+  if (p) { state.downloadDir = p; localStorage.setItem('seedream_dl_path', p); }
+}
+
+function resetDlPath() {
+  state.downloadDir = null;
+  state.downloadDirHandle = null;
+  localStorage.removeItem('seedream_dl_path');
+  document.getElementById('dlPath').value = '';
+  setStatus('done', '下载路径已重置为浏览器默认目录');
+  setTimeout(() => setStatus('done', '等待生成'), 2500);
+}
+
+async function pickDownloadDir() {
+  try {
+    const handle = await window.showDirectoryPicker();
+    state.downloadDir = handle.name;
+    state.downloadDirHandle = handle;
+    document.getElementById('dlPath').value = handle.name + ' (本地目录)';
+    saveDlPath(handle.name);
+    setStatus('done', '下载路径已设置: ' + handle.name);
+    setTimeout(() => setStatus('done', '等待生成'), 2500);
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    document.getElementById('dlPath').value = '';
+    showError('浏览器不支持目录选择，请手动输入路径');
+  }
+}
+
+async function downloadImg(url, idx) {
+  const a = document.createElement('a');
+  a.href = url;
+  const filename = `seedream-${state.ratio.replace(':', 'x')}_${String(idx).padStart(2, '0')}_${Date.now()}.jpg`;
+  a.download = filename;
+
+  if (state.downloadDirHandle) {
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const fileHandle = await state.downloadDirHandle.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (e) {
+      showError('保存到本地目录失败，使用浏览器下载: ' + e.message);
+    }
+  }
+
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// ===== API Key 验证 =====
+async function validateApiKey() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  if (!apiKey) { showValidateResult('fail', '请先输入 API Key'); return; }
+
+  const btn = document.getElementById('imgValidateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="v-spin"></span>验证中';
+  showValidateResult('info', '正在验证图片生成 API Key...');
+
+  try {
+    const resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey,
+      },
+      body: JSON.stringify({
+        model: 'doubao-seedream-4-5-251128',
+        prompt: 'test',
+        size: '2048x2048',
+        response_format: 'url',
+      }),
+    });
+
+    const data = await resp.json().catch(() => ({}));
+
+    if (resp.ok) {
+      showValidateResult('success', '图片生成 API Key 有效！');
+      saveImgKey(apiKey);
+    } else if (resp.status === 401 || resp.status === 403) {
+      showValidateResult('fail', 'Key 无效（' + resp.status + '）: ' + (data.error?.message || '认证失败'));
+    } else if (resp.status === 429) {
+      showValidateResult('fail', '请求频繁（429），稍后重试');
+    } else {
+      showValidateResult('fail', '验证失败（' + resp.status + '）: ' + (data.error?.message || JSON.stringify(data)));
+    }
+  } catch (e) {
+    showValidateResult('fail', '网络错误: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '验证';
+  }
+}
+
+async function validateLlmKey() {
+  const apiKey = document.getElementById('llmKey').value.trim();
+  if (!apiKey) { showLlmValidateResult('fail', '请先输入 LLM API Key'); return; }
+
+  const btn = document.getElementById('llmValidateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="v-spin"></span>验证中';
+  showLlmValidateResult('info', '正在验证 LLM API Key...');
+
+  try {
+    const resp = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey,
+      },
+      body: JSON.stringify({
+        model: 'doubao-seed-2-0-code-preview-260215',
+        messages: [{ role: 'user', content: 'test' }],
+        max_tokens: 5,
+      }),
+    });
+
+    const data = await resp.json().catch(() => ({}));
+
+    if (resp.ok) {
+      showLlmValidateResult('success', 'LLM API Key 有效！');
+      saveLlmKey(apiKey);
+    } else if (resp.status === 401 || resp.status === 403) {
+      showLlmValidateResult('fail', 'Key 无效（' + resp.status + '）: ' + (data.error?.message || '认证失败'));
+    } else if (resp.status === 429) {
+      showLlmValidateResult('fail', '请求频繁（429），稍后重试');
+    } else {
+      const msg = data.error?.message || JSON.stringify(data);
+      if (msg.includes('not activated')) {
+        showLlmValidateResult('fail', '模型未开通，请在 ARK 控制台开通 doubao-seed-2-0-code-preview-260215');
+      } else {
+        showLlmValidateResult('fail', '验证失败（' + resp.status + '）: ' + msg);
+      }
+    }
+  } catch (e) {
+    showLlmValidateResult('fail', '网络错误: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '验证';
+  }
+}
+
+function showValidateResult(type, msg) {
+  const el = document.getElementById('validateResult');
+  el.className = 'validate-result show ' + type;
+  el.textContent = msg;
+}
+function showLlmValidateResult(type, msg) {
+  const el = document.getElementById('llmValidateResult');
+  el.className = 'validate-result show ' + type;
+  el.textContent = msg;
+}
+function saveImgKey(k) { if (k) localStorage.setItem('seedream_api_key', k); }
+function saveLlmKey(k) { if (k) localStorage.setItem('seedream_llm_key', k); }
+
+// ===== Link 可用性检测 =====
+async function checkLinkAvailability(url, imgIdx) {
+  const card = document.getElementById('imgCard' + imgIdx);
+  if (!card) return;
+  const wrap = card.querySelector('.card-img-wrap');
+  if (!wrap) return;
+
+  addLinkBadge(wrap, 'checking', '检测中');
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const resp = await fetch(url, { method: 'HEAD', signal: controller.signal, mode: 'no-cors' });
+    clearTimeout(timeout);
+
+    if (resp.ok || resp.type === 'opaque') {
+      updateLinkBadge(wrap, 'ok', '链接有效');
+    } else {
+      updateLinkBadge(wrap, 'fail', '链接失效(' + resp.status + ')');
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      updateLinkBadge(wrap, 'fail', '超时');
+    } else {
+      updateLinkBadge(wrap, 'fail', '不可达');
+    }
+  }
+}
+
+function addLinkBadge(parent, status, text) {
+  let badge = parent.querySelector('.link-status');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.className = 'link-status ' + status;
+    badge.innerHTML = '<span class="link-dot"></span>' + text;
+    parent.appendChild(badge);
+  }
+}
+
+function updateLinkBadge(parent, status, text) {
+  const badge = parent.querySelector('.link-status');
+  if (badge) {
+    badge.className = 'link-status ' + status;
+    badge.innerHTML = '<span class="link-dot"></span>' + text;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
