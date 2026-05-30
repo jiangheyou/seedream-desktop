@@ -1,7 +1,7 @@
 {
   "version": "1.0.3",
   "notes": "Seedream 4.5 v1.0.3（2026-05-30）",
-  "downloadUrl": "https://gitee.com/jiang-heyou/seedream-4.5/releases/download/v1.0.3/Seedream%204.5%20Setup%201.0.3.exe",
+  "downloadUrl": "https://github.com/jiangheyou/seedream-desktop/releases/download/1.03/Seedream.4.5.Setup.1.0.3.exe",
   "fallbackUrls": [
     "https://cdn.jsdelivr.net/gh/jiangheyou/seedream-desktop@main/dist/Seedream%204.5%20Setup%201.0.3.exe"
   ],
